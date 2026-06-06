@@ -508,16 +508,18 @@ def setup():
         return jsonify({"error": "כתובת אימייל לא תקינה"}), 400
     if not password_ok(password):
         return jsonify({"error": "הסיסמה חייבת לכלול אותיות ומספרים, לפחות 6 תווים"}), 400
-    if not question or not answer:
-        return jsonify({"error": "צריך לבחור שאלת אבטחה ותשובה (לשחזור סיסמה)"}), 400
     if db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
         return jsonify({"error": "האימייל כבר בשימוש"}), 400
+    # שאלת אבטחה — לא חובה (רק אם מילאו את שניהם נשמור אותה לשחזור)
+    has_security = bool(question and answer)
+    q_store = question if has_security else None
+    a_store = generate_password_hash(answer) if has_security else None
     cur = db.execute(
         """INSERT INTO users (name, role, pin, emoji, email,
                               security_question, security_answer)
            VALUES (?,?,?,?,?,?,?)""",
         (name, "parent", generate_password_hash(password), emoji, email,
-         question, generate_password_hash(answer)),
+         q_store, a_store),
     )
     pid = cur.lastrowid
     code = secrets.token_hex(4)  # קוד משפחה ייחודי (8 תווים)
@@ -541,8 +543,10 @@ def forgot_question():
         "SELECT security_question FROM users WHERE email = ? AND role='parent'",
         (email,),
     ).fetchone()
-    if row is None or not row["security_question"]:
+    if row is None:
         return jsonify({"error": "לא נמצא חשבון הורה עם האימייל הזה"}), 404
+    if not row["security_question"]:
+        return jsonify({"error": "לחשבון הזה לא הוגדרה שאלת אבטחה, אז אי אפשר לשחזר אוטומטית 😕"}), 400
     return jsonify({"question": row["security_question"]})
 
 

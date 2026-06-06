@@ -144,6 +144,7 @@ function renderSetup() {
     try {
       ME = await api("/api/setup", "POST",
         { name, emoji, email, password: pass, security_question: question, security_answer: answer });
+      localStorage.setItem("parentEmail", email);  // לזכור למכשיר הזה
       celebrate();
       renderHome();
     } catch (e) { err.textContent = e.message; }
@@ -211,19 +212,25 @@ async function renderLogin() {
   }
 }
 
-// חלון כניסת הורה (אימייל + סיסמה)
+// חלון כניסת הורה. בפעם הראשונה — אימייל + סיסמה.
+// מהפעם השנייה (אותו מכשיר) — רק סיסמה, כי האימייל נזכר.
 function openParentLogin() {
   const back = document.createElement("div");
   back.className = "modal-back";
+  const saved = localStorage.getItem("parentEmail") || "";
   back.innerHTML = `<div class="modal">
     <button class="close" data-act="close">✕</button>
     <div class="pin-emoji">👑</div>
     <h2>כניסת הורה</h2>
-    <input class="ask-input pl-email" type="email" placeholder="אימייל">
+    ${saved
+      ? `<p class="welcome-back">ברוך שובך! 👋<br><b>${saved}</b></p>
+         <input class="pl-email" type="hidden" value="${saved}">`
+      : `<input class="ask-input pl-email" type="email" placeholder="אימייל">`}
     <input class="ask-input pl-pass" type="password" placeholder="סיסמה">
     <div class="pin-error pl-err"></div>
     <button class="btn big" data-act="go">כניסה</button>
     <a class="forgot-link" data-act="forgot">שכחתי סיסמה</a>
+    ${saved ? `<a class="forgot-link" data-act="other">כניסה עם אימייל אחר</a>` : ""}
   </div>`;
   document.body.appendChild(back);
   const err = $(".pl-err", back);
@@ -232,6 +239,7 @@ function openParentLogin() {
     const password = $(".pl-pass", back).value;
     try {
       ME = await api("/api/login", "POST", { email, password });
+      localStorage.setItem("parentEmail", email);  // לזכור למכשיר הזה
       back.remove();
       renderHome();
     } catch (e) { err.textContent = e.message; }
@@ -239,7 +247,14 @@ function openParentLogin() {
   $('[data-act="close"]', back).onclick = () => back.remove();
   $('[data-act="go"]', back).onclick = submit;
   $('[data-act="forgot"]', back).onclick = () => { back.remove(); openForgot(); };
+  const other = $('[data-act="other"]', back);
+  if (other) other.onclick = () => {
+    localStorage.removeItem("parentEmail");
+    back.remove();
+    openParentLogin();
+  };
   $(".pl-pass", back).onkeydown = (e) => { if (e.key === "Enter") submit(); };
+  setTimeout(() => { (saved ? $(".pl-pass", back) : $(".pl-email", back)).focus(); }, 50);
 }
 
 // תהליך "שכחתי סיסמה" — שאלת אבטחה → סיסמה חדשה

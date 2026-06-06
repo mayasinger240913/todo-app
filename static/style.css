@@ -106,6 +106,7 @@ h2{font-size:21px;margin:.2em 0 .6em}
 .ask-input{width:100%;padding:13px;margin:6px 0 12px;border:3px solid #e3dcff;border-radius:14px;font-size:16px;font-family:inherit;text-align:center}
 .ask-input:focus{outline:none;border-color:var(--primary)}
 .forgot-link{display:inline-block;margin-top:12px;color:var(--primary);font-weight:700;font-size:14px;cursor:pointer;text-decoration:underline}
+.welcome-back{background:#eef0ff;border-radius:14px;padding:12px;margin:4px 0 12px;font-size:15px;line-height:1.5;color:var(--text)}
 .kids-note{display:flex;align-items:center;gap:12px;margin-top:14px;background:linear-gradient(180deg,#fff7d6,#ffe89e);color:#8a5a00;border-radius:18px;padding:14px 16px;font-size:16px;font-weight:700;box-shadow:var(--shadow-sm);line-height:1.5}
 .kids-note .kids-emoji{font-size:36px;flex-shrink:0}
 
