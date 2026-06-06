@@ -126,13 +126,15 @@ function renderSetup() {
   $("#su-go").onclick = async () => {
     const name = $("#su-name").value.trim();
     const emoji = $("#su-emoji").value.trim() || "👑";
-    const pin = $("#su-pin").value.trim();
-    const pin2 = $("#su-pin2").value.trim();
+    const email = $("#su-email").value.trim();
+    const pass = $("#su-pass").value;
+    const pass2 = $("#su-pass2").value;
     if (!name) { err.textContent = "צריך לבחור שם"; return; }
-    if (pin.length < 4) { err.textContent = "הקוד חייב להיות לפחות 4 ספרות"; return; }
-    if (pin !== pin2) { err.textContent = "הקוד והאימות לא תואמים 🙈"; return; }
+    if (!email.includes("@")) { err.textContent = "צריך אימייל תקין"; return; }
+    if (pass.length < 6) { err.textContent = "הסיסמה חייבת להיות לפחות 6 תווים"; return; }
+    if (pass !== pass2) { err.textContent = "הסיסמה והאימות לא תואמים 🙈"; return; }
     try {
-      ME = await api("/api/setup", "POST", { name, emoji, pin });
+      ME = await api("/api/setup", "POST", { name, emoji, email, password: pass });
       celebrate();
       renderHome();
     } catch (e) { err.textContent = e.message; }
@@ -145,22 +147,64 @@ function renderSetup() {
 async function renderLogin() {
   app.innerHTML = "";
   app.appendChild(tpl("tpl-login"));
-  const users = await api("/api/users");
   const list = $("#user-list");
   list.innerHTML = "";
-  users.forEach((u) => {
+
+  // כניסת הורה — אימייל + סיסמה
+  const parentBtn = document.createElement("div");
+  parentBtn.className = "user-pick";
+  parentBtn.innerHTML = `
+    <span class="ava">👑</span>
+    <div><div class="nm">הורה</div><div class="rl">כניסה עם אימייל וסיסמה</div></div>
+    <span class="badge-parent">הורה</span>`;
+  parentBtn.onclick = openParentLogin;
+  list.appendChild(parentBtn);
+
+  // פרופילי ילדים — לחיצה נכנסת ישר, בלי קוד
+  const kids = await api("/api/users");
+  kids.forEach((u) => {
     const el = document.createElement("div");
     el.className = "user-pick";
     el.innerHTML = `
       <span class="ava">${u.emoji}</span>
-      <div>
-        <div class="nm">${u.name}</div>
-        <div class="rl">${u.role === "parent" ? "הורה" : "ילד/ה"}</div>
-      </div>
-      ${u.role === "parent" ? '<span class="badge-parent">הורה 👑</span>' : ""}`;
-    el.onclick = () => openPin(u);
+      <div><div class="nm">${u.name}</div><div class="rl">ילד/ה — לחצו להיכנס</div></div>`;
+    el.onclick = async () => {
+      try {
+        ME = await api("/api/login", "POST", { user_id: u.id });
+        renderHome();
+      } catch (e) { toast(e.message); }
+    };
     list.appendChild(el);
   });
+}
+
+// חלון כניסת הורה (אימייל + סיסמה)
+function openParentLogin() {
+  const back = document.createElement("div");
+  back.className = "modal-back";
+  back.innerHTML = `<div class="modal">
+    <button class="close" data-act="close">✕</button>
+    <div class="pin-emoji">👑</div>
+    <h2>כניסת הורה</h2>
+    <input class="ask-input pl-email" type="email" placeholder="אימייל">
+    <input class="ask-input pl-pass" type="password" placeholder="סיסמה">
+    <div class="pin-error pl-err"></div>
+    <button class="btn big" data-act="go">כניסה</button>
+  </div>`;
+  document.body.appendChild(back);
+  const err = $(".pl-err", back);
+  const submit = async () => {
+    const email = $(".pl-email", back).value.trim();
+    const password = $(".pl-pass", back).value;
+    try {
+      ME = await api("/api/login", "POST", { email, password });
+      back.remove();
+      renderHome();
+    } catch (e) { err.textContent = e.message; }
+  };
+  $('[data-act="close"]', back).onclick = () => back.remove();
+  $('[data-act="go"]', back).onclick = submit;
+  $(".pl-pass", back).onkeydown = (e) => { if (e.key === "Enter") submit(); };
 }
 
 function openPin(u) {
@@ -201,7 +245,12 @@ function renderHome() {
     ME = null;
     renderLogin();
   };
-  $('[data-act="change-pin"]', header).onclick = openChangePin;
+  const cpBtn = $('[data-act="change-pin"]', header);
+  if (ME.role === "parent") {
+    cpBtn.onclick = openChangePin;   // הורה: החלפת סיסמה
+  } else {
+    cpBtn.remove();                  // לילד אין קוד/סיסמה
+  }
   app.appendChild(header);
 
   if (ME.role === "child") renderChild();
@@ -215,10 +264,10 @@ function openChangePin() {
   back.innerHTML = `<div class="modal">
     <button class="close" data-act="close">✕</button>
     <div class="pin-emoji">🔑</div>
-    <h2>החלפת קוד</h2>
-    <input class="ask-input cp-cur" type="password" inputmode="numeric" placeholder="הקוד הנוכחי">
-    <input class="ask-input cp-new" type="password" inputmode="numeric" placeholder="קוד חדש (לפחות 4 ספרות)">
-    <input class="ask-input cp-conf" type="password" inputmode="numeric" placeholder="אימות הקוד החדש">
+    <h2>החלפת סיסמה</h2>
+    <input class="ask-input cp-cur" type="password" placeholder="הסיסמה הנוכחית">
+    <input class="ask-input cp-new" type="password" placeholder="סיסמה חדשה (לפחות 6 תווים)">
+    <input class="ask-input cp-conf" type="password" placeholder="אימות הסיסמה החדשה">
     <div class="pin-error cp-err"></div>
     <button class="btn big" data-act="save">שמירה</button>
   </div>`;
@@ -228,16 +277,16 @@ function openChangePin() {
   $('[data-act="close"]', back).onclick = () => back.remove();
   $('[data-act="save"]', back).onclick = async () => {
     const cur = $(".cp-cur", back).value;
-    const nw = $(".cp-new", back).value.trim();
-    const conf = $(".cp-conf", back).value.trim();
+    const nw = $(".cp-new", back).value;
+    const conf = $(".cp-conf", back).value;
     if (!cur || !nw || !conf) { err.textContent = "צריך למלא את כל השדות"; return; }
-    if (nw.length < 4) { err.textContent = "הקוד החדש חייב להיות לפחות 4 ספרות"; return; }
-    if (nw !== conf) { err.textContent = "הקוד החדש והאימות לא תואמים 🙈"; return; }
+    if (nw.length < 6) { err.textContent = "הסיסמה החדשה חייבת להיות לפחות 6 תווים"; return; }
+    if (nw !== conf) { err.textContent = "הסיסמה והאימות לא תואמים 🙈"; return; }
     try {
       await api("/api/change-pin", "POST", { current_pin: cur, new_pin: nw });
       back.remove();
       celebrate();
-      toast("הקוד הוחלף בהצלחה! 🔐");
+      toast("הסיסמה הוחלפה בהצלחה! 🔐");
     } catch (e) { err.textContent = e.message; }
   };
 }
@@ -795,8 +844,7 @@ async function loadKids(root) {
     <h2>הוספת ילד/ה</h2>
     <div class="form-row">
       <input class="w-emoji" id="kid-emoji" value="🙂" maxlength="2">
-      <input id="kid-name" placeholder="שם">
-      <input class="w-pts" id="kid-pin" placeholder="קוד" inputmode="numeric">
+      <input id="kid-name" placeholder="שם הילד/ה">
     </div>
     <button class="btn big" id="add-kid">הוספה ➕</button>
   </div>`;
@@ -822,11 +870,10 @@ async function loadKids(root) {
 
   $("#add-kid", box).onclick = async () => {
     const name = $("#kid-name", box).value.trim();
-    const pin = $("#kid-pin", box).value.trim();
     const emoji = $("#kid-emoji", box).value.trim() || "🙂";
-    if (!name || !pin) { toast("צריך שם וקוד"); return; }
+    if (!name) { toast("צריך שם"); return; }
     try {
-      await api("/api/children", "POST", { name, pin, emoji });
+      await api("/api/children", "POST", { name, emoji });
       toast("נוסף בהצלחה! 🎉");
       loadKids(root);
     } catch (e) { toast(e.message); }

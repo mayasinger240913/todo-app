@@ -66,10 +66,11 @@ def init_db():
             id       INTEGER PRIMARY KEY AUTOINCREMENT,
             name     TEXT NOT NULL,
             role     TEXT NOT NULL,            -- 'parent' או 'child'
-            pin      TEXT NOT NULL,            -- קוד כניסה
+            pin      TEXT,                     -- סיסמת ההורה (להורה בלבד; ילדים בלי)
             points   INTEGER NOT NULL DEFAULT 0,   -- נקודות לשימוש (יורדות בפרסים)
             total_earned INTEGER NOT NULL DEFAULT 0, -- נקודות לכל החיים (קובעות רמה)
-            emoji    TEXT NOT NULL DEFAULT '🙂'
+            emoji    TEXT NOT NULL DEFAULT '🙂',
+            email    TEXT                          -- להורה בלבד (כניסה עם אימייל)
         );
 
         CREATE TABLE IF NOT EXISTS chores (
@@ -392,7 +393,7 @@ def uploaded_file(filename):
 def list_users():
     """רשימת המשתמשים למסך הכניסה (בלי לחשוף את הקוד)."""
     rows = get_db().execute(
-        "SELECT id, name, role, emoji FROM users ORDER BY role DESC, name"
+        "SELECT id, name, role, emoji FROM users WHERE role='child' ORDER BY name"
     ).fetchall()
     return jsonify([dict(r) for r in rows])
 
@@ -400,11 +401,27 @@ def list_users():
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json(force=True)
+    db = get_db()
+
+    # כניסת הורה: אימייל + סיסמה
+    email = (data.get("email") or "").strip().lower()
+    if email:
+        row = db.execute(
+            "SELECT * FROM users WHERE email = ? AND role = 'parent'", (email,)
+        ).fetchone()
+        password = str(data.get("password") or "")
+        if row is None or not check_password_hash(row["pin"], password):
+            return jsonify({"error": "אימייל או סיסמה שגויים 🙈"}), 401
+        session["user_id"] = row["id"]
+        return jsonify(_user_public(row))
+
+    # כניסת ילד: רק בחירת פרופיל, בלי קוד
     user_id = data.get("user_id")
-    pin = str(data.get("pin", ""))
-    row = get_db().execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-    if row is None or not check_password_hash(row["pin"], pin):
-        return jsonify({"error": "קוד שגוי 🙈"}), 401
+    row = db.execute(
+        "SELECT * FROM users WHERE id = ? AND role = 'child'", (user_id,)
+    ).fetchone()
+    if row is None:
+        return jsonify({"error": "פרופיל לא נמצא"}), 404
     session["user_id"] = row["id"]
     return jsonify(_user_public(row))
 
@@ -423,10 +440,10 @@ def change_pin():
     data = request.get_json(force=True)
     current = str(data.get("current_pin", ""))
     new = str(data.get("new_pin", "")).strip()
-    if not check_password_hash(user["pin"], current):
-        return jsonify({"error": "הקוד הנוכחי שגוי 🙈"}), 400
-    if len(new) < 4:
-        return jsonify({"error": "הקוד החדש חייב להיות לפחות 4 תווים"}), 400
+    if not user["pin"] or not check_password_hash(user["pin"], current):
+        return jsonify({"error": "הסיסמה הנוכחית שגויה 🙈"}), 400
+    if len(new) < 6:
+        return jsonify({"error": "הסיסמה החדשה חייבת להיות לפחות 6 תווים"}), 400
     db = get_db()
     db.execute("UPDATE users SET pin = ? WHERE id = ?", (generate_password_hash(new), user["id"]))
     db.commit()
@@ -452,14 +469,19 @@ def setup():
     data = request.get_json(force=True)
     name = (data.get("name") or "").strip()
     emoji = (data.get("emoji") or "👑").strip()
-    pin = str(data.get("pin") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    password = str(data.get("password") or "")
     if not name:
         return jsonify({"error": "צריך לבחור שם"}), 400
-    if len(pin) < 4:
-        return jsonify({"error": "הקוד חייב להיות לפחות 4 ספרות"}), 400
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return jsonify({"error": "כתובת אימייל לא תקינה"}), 400
+    if len(password) < 6:
+        return jsonify({"error": "הסיסמה חייבת להיות לפחות 6 תווים"}), 400
+    if db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
+        return jsonify({"error": "האימייל כבר בשימוש"}), 400
     cur = db.execute(
-        "INSERT INTO users (name, role, pin, emoji) VALUES (?,?,?,?)",
-        (name, "parent", generate_password_hash(pin), emoji),
+        "INSERT INTO users (name, role, pin, emoji, email) VALUES (?,?,?,?,?)",
+        (name, "parent", generate_password_hash(password), emoji, email),
     )
     db.commit()
     row = db.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -496,14 +518,13 @@ def _user_public(row):
 def add_child():
     data = request.get_json(force=True)
     name = (data.get("name") or "").strip()
-    pin = str(data.get("pin") or "").strip()
     emoji = (data.get("emoji") or "🙂").strip()
-    if not name or not pin:
-        return jsonify({"error": "צריך שם וקוד"}), 400
+    if not name:
+        return jsonify({"error": "צריך שם"}), 400
     db = get_db()
     db.execute(
-        "INSERT INTO users (name, role, pin, emoji) VALUES (?,?,?,?)",
-        (name, "child", generate_password_hash(pin), emoji),
+        "INSERT INTO users (name, role, emoji) VALUES (?,?,?)",
+        (name, "child", emoji),
     )
     db.commit()
     return jsonify({"ok": True})

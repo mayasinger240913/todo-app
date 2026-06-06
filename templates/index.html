@@ -54,8 +54,9 @@
           <input class="w-emoji" id="su-emoji" value="👑" maxlength="2">
           <input id="su-name" placeholder="השם שלך (הורה)">
         </div>
-        <input class="ask-input" id="su-pin" type="password" inputmode="numeric" placeholder="בחרו קוד (לפחות 4 ספרות)">
-        <input class="ask-input" id="su-pin2" type="password" inputmode="numeric" placeholder="אימות הקוד">
+        <input class="ask-input" id="su-email" type="email" placeholder="אימייל">
+        <input class="ask-input" id="su-pass" type="password" placeholder="סיסמה (לפחות 6 תווים)">
+        <input class="ask-input" id="su-pass2" type="password" placeholder="אימות סיסמה">
         <div class="pin-error" id="su-err"></div>
         <button class="btn big" id="su-go">יצירת חשבון 🚀</button>
       </div>
@@ -85,7 +86,7 @@
     <header class="topbar">
       <div class="who"></div>
       <div class="top-actions">
-        <button class="btn ghost small" data-act="change-pin">🔑 קוד</button>
+        <button class="btn ghost small" data-act="change-pin">🔑 סיסמה</button>
         <button class="btn ghost small" data-act="logout">יציאה</button>
       </div>
     </header>
