@@ -56,8 +56,48 @@ def close_db(exception):
         db.close()
 
 
+# מטלות ופרסים לדוגמה — נזרעים לכל משפחה חדשה בעת ההקמה.
+SAMPLE_CHORES = [
+    ("לסדר את החדר", 20, "🛏️"),
+    ("להוציא את הזבל", 10, "🗑️"),
+    ("הכנסת כלים למדיח", 15, "🍽️"),
+    ("הוצאת כלים מהמדיח", 15, "🥣"),
+    ("לסדר את הסלון", 20, "🛋️"),
+    ("לסדר את המטבח", 20, "🍴"),
+    ("לשטוף רצפה בסלון", 25, "🧽"),
+    ("לשטוף רצפה במטבח", 25, "🧹"),
+    ("הכנת ארוחת ערב לכל המשפחה", 40, "🍝"),
+    ("לתלות כביסה", 20, "🧺"),
+    ("לקפל כביסה", 20, "👕"),
+    ("להוציא את הכלב לטיול", 15, "🐕"),
+    ("לעזור לאח/אחות הקטנים", 30, "🧸"),
+    ("לעזור לאח/אחות בשיעורי הבית", 30, "📚"),
+    ("להכין כריכים לבית ספר", 15, "🥪"),
+]
+SAMPLE_REWARDS = [
+    ("שעה נוספת של מסכים", 50, "📱"),
+    ("50 ₪ דמי כיס", 100, "🪙"),
+    ("כרטיס לסרט בקולנוע", 120, "🎬"),
+    ("ארוחה במסעדה האהובה", 250, "🍔"),
+    ("צעצוע או משחק חדש", 300, "🎮"),
+    ("יום כיף בחוץ (לונה פארק / בריכה)", 400, "🎢"),
+]
+
+
+def seed_family(db, family_id):
+    """זורע מטלות ופרסים לדוגמה למשפחה חדשה."""
+    db.executemany(
+        "INSERT INTO chores (title, points, emoji, family_id) VALUES (?,?,?,?)",
+        [(t, p, e, family_id) for (t, p, e) in SAMPLE_CHORES],
+    )
+    db.executemany(
+        "INSERT INTO rewards (title, cost_points, emoji, family_id) VALUES (?,?,?,?)",
+        [(t, c, e, family_id) for (t, c, e) in SAMPLE_REWARDS],
+    )
+
+
 def init_db():
-    """יוצר את הטבלאות בפעם הראשונה, וזורע נתוני התחלה לדוגמה."""
+    """יוצר את הטבלאות. הנתונים מופרדים לפי family_id (כל משפחה בנפרד)."""
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
     db.executescript(
@@ -70,21 +110,27 @@ def init_db():
             points   INTEGER NOT NULL DEFAULT 0,   -- נקודות לשימוש (יורדות בפרסים)
             total_earned INTEGER NOT NULL DEFAULT 0, -- נקודות לכל החיים (קובעות רמה)
             emoji    TEXT NOT NULL DEFAULT '🙂',
-            email    TEXT                          -- להורה בלבד (כניסה עם אימייל)
+            email    TEXT,                         -- להורה בלבד (כניסה עם אימייל)
+            security_question TEXT,                -- לשחזור סיסמה
+            security_answer   TEXT,                -- תשובה (מוצפנת)
+            family_id   INTEGER,                   -- לאיזו משפחה המשתמש שייך
+            family_code TEXT                       -- קוד ייחודי למשפחה (להורה בלבד)
         );
 
         CREATE TABLE IF NOT EXISTS chores (
             id      INTEGER PRIMARY KEY AUTOINCREMENT,
             title   TEXT NOT NULL,
             points  INTEGER NOT NULL,
-            emoji   TEXT NOT NULL DEFAULT '🧹'
+            emoji   TEXT NOT NULL DEFAULT '🧹',
+            family_id INTEGER NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS rewards (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             title        TEXT NOT NULL,
             cost_points  INTEGER NOT NULL,
-            emoji        TEXT NOT NULL DEFAULT '🎁'
+            emoji        TEXT NOT NULL DEFAULT '🎁',
+            family_id    INTEGER NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS submissions (
@@ -101,6 +147,7 @@ def init_db():
             suspicious     INTEGER NOT NULL DEFAULT 0,  -- 1 = חשד לרמאות
             suspect_match  INTEGER,            -- id ההגשה הקודמת שהתמונה דומה לה
             suspect_reason TEXT,               -- הסבר למה יש חשד (מהסוכן)
+            family_id      INTEGER NOT NULL,
             FOREIGN KEY (child_id) REFERENCES users(id)
         );
 
@@ -113,6 +160,7 @@ def init_db():
             status        TEXT NOT NULL DEFAULT 'pending',
             created_at    TEXT NOT NULL,
             reviewed_at   TEXT,
+            family_id     INTEGER NOT NULL,
             FOREIGN KEY (child_id) REFERENCES users(id)
         );
 
@@ -125,52 +173,13 @@ def init_db():
             status           TEXT NOT NULL DEFAULT 'pending',
             created_at       TEXT NOT NULL,
             reviewed_at      TEXT,
+            family_id        INTEGER NOT NULL,
             FOREIGN KEY (child_id) REFERENCES users(id)
         );
         """
     )
 
-    # זורעים מטלות ופרסים לדוגמה (אם הטבלאות ריקות) — בלי חשבונות דמו.
-    # ההורה ייצור את החשבון שלו במסך ההקמה בכניסה הראשונה.
-    if db.execute("SELECT COUNT(*) AS c FROM chores").fetchone()["c"] == 0:
-        # מטלות לדוגמה
-        sample_chores = [
-            ("לסדר את החדר", 20, "🛏️"),
-            ("להוציא את הזבל", 10, "🗑️"),
-            ("הכנסת כלים למדיח", 15, "🍽️"),
-            ("הוצאת כלים מהמדיח", 15, "🥣"),
-            ("לסדר את הסלון", 20, "🛋️"),
-            ("לסדר את המטבח", 20, "🍴"),
-            ("לשטוף רצפה בסלון", 25, "🧽"),
-            ("לשטוף רצפה במטבח", 25, "🧹"),
-            ("הכנת ארוחת ערב לכל המשפחה", 40, "🍝"),
-            ("לתלות כביסה", 20, "🧺"),
-            ("לקפל כביסה", 20, "👕"),
-            ("להוציא את הכלב לטיול", 15, "🐕"),
-            ("לעזור לאח/אחות הקטנים", 30, "🧸"),
-            ("לעזור לאח/אחות בשיעורי הבית", 30, "📚"),
-            ("להכין כריכים לבית ספר", 15, "🥪"),
-        ]
-        db.executemany(
-            "INSERT INTO chores (title, points, emoji) VALUES (?,?,?)",
-            sample_chores,
-        )
-        # פרסים לדוגמה
-        sample_rewards = [
-            ("שעה נוספת של מסכים", 50, "📱"),
-            ("50 ₪ דמי כיס", 100, "🪙"),
-            ("כרטיס לסרט בקולנוע", 120, "🎬"),
-            ("ארוחה במסעדה האהובה", 250, "🍔"),
-            ("צעצוע או משחק חדש", 300, "🎮"),
-            ("יום כיף בחוץ (לונה פארק / בריכה)", 400, "🎢"),
-        ]
-        db.executemany(
-            "INSERT INTO rewards (title, cost_points, emoji) VALUES (?,?,?)",
-            sample_rewards,
-        )
-        db.commit()
-        print(">> נזרעו מטלות ופרסים לדוגמה. ההורה ייצור חשבון במסך ההקמה.")
-
+    db.commit()
     db.close()
 
 
@@ -387,13 +396,29 @@ def uploaded_file(filename):
     return send_from_directory(UPLOAD_DIR, filename)
 
 
+@app.route("/f/<code>")
+def family_link(code):
+    # קישור ייחודי למשפחה — מגיש את אותה אפליקציה; הצד-לקוח קורא את הקוד מה-URL
+    return render_template("index.html")
+
+
 # ---------- API: התחברות ----------
 
 @app.route("/api/users", methods=["GET"])
 def list_users():
-    """רשימת המשתמשים למסך הכניסה (בלי לחשוף את הקוד)."""
-    rows = get_db().execute(
-        "SELECT id, name, role, emoji FROM users WHERE role='child' ORDER BY name"
+    """רשימת הילדים של משפחה מסוימת (לפי family_code מהקישור)."""
+    code = (request.args.get("family_code") or "").strip()
+    if not code:
+        return jsonify([])  # בלי קוד משפחה — אין רשימת ילדים
+    db = get_db()
+    parent = db.execute(
+        "SELECT family_id FROM users WHERE family_code = ?", (code,)
+    ).fetchone()
+    if parent is None:
+        return jsonify([])
+    rows = db.execute(
+        "SELECT id, name, role, emoji FROM users WHERE role='child' AND family_id = ? ORDER BY name",
+        (parent["family_id"],),
     ).fetchall()
     return jsonify([dict(r) for r in rows])
 
@@ -461,32 +486,79 @@ def setup_status():
 
 @app.route("/api/setup", methods=["POST"])
 def setup():
-    """יצירת חשבון ההורה הראשון (רק אם עדיין אין הורה)."""
+    """יצירת חשבון הורה + משפחה חדשה (כל אחד יכול להירשם)."""
     db = get_db()
-    n = db.execute("SELECT COUNT(*) AS c FROM users WHERE role='parent'").fetchone()["c"]
-    if n > 0:
-        return jsonify({"error": "כבר קיים חשבון הורה"}), 403
     data = request.get_json(force=True)
     name = (data.get("name") or "").strip()
     emoji = (data.get("emoji") or "👑").strip()
     email = (data.get("email") or "").strip().lower()
     password = str(data.get("password") or "")
+    question = (data.get("security_question") or "").strip()
+    answer = (data.get("security_answer") or "").strip().lower()
     if not name:
         return jsonify({"error": "צריך לבחור שם"}), 400
     if "@" not in email or "." not in email.split("@")[-1]:
         return jsonify({"error": "כתובת אימייל לא תקינה"}), 400
     if len(password) < 6:
         return jsonify({"error": "הסיסמה חייבת להיות לפחות 6 תווים"}), 400
+    if not question or not answer:
+        return jsonify({"error": "צריך לבחור שאלת אבטחה ותשובה (לשחזור סיסמה)"}), 400
     if db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
         return jsonify({"error": "האימייל כבר בשימוש"}), 400
     cur = db.execute(
-        "INSERT INTO users (name, role, pin, emoji, email) VALUES (?,?,?,?,?)",
-        (name, "parent", generate_password_hash(password), emoji, email),
+        """INSERT INTO users (name, role, pin, emoji, email,
+                              security_question, security_answer)
+           VALUES (?,?,?,?,?,?,?)""",
+        (name, "parent", generate_password_hash(password), emoji, email,
+         question, generate_password_hash(answer)),
     )
+    pid = cur.lastrowid
+    code = secrets.token_hex(4)  # קוד משפחה ייחודי (8 תווים)
+    db.execute(
+        "UPDATE users SET family_id = ?, family_code = ? WHERE id = ?",
+        (pid, code, pid),
+    )
+    seed_family(db, pid)  # מטלות ופרסים לדוגמה למשפחה החדשה
     db.commit()
-    row = db.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)).fetchone()
+    row = db.execute("SELECT * FROM users WHERE id = ?", (pid,)).fetchone()
     session["user_id"] = row["id"]  # מתחברים אוטומטית
     return jsonify(_user_public(row))
+
+
+@app.route("/api/forgot/question", methods=["POST"])
+def forgot_question():
+    """מחזיר את שאלת האבטחה של ההורה לפי האימייל (לשחזור סיסמה)."""
+    data = request.get_json(force=True)
+    email = (data.get("email") or "").strip().lower()
+    row = get_db().execute(
+        "SELECT security_question FROM users WHERE email = ? AND role='parent'",
+        (email,),
+    ).fetchone()
+    if row is None or not row["security_question"]:
+        return jsonify({"error": "לא נמצא חשבון הורה עם האימייל הזה"}), 404
+    return jsonify({"question": row["security_question"]})
+
+
+@app.route("/api/forgot/reset", methods=["POST"])
+def forgot_reset():
+    """מאפס סיסמה אחרי תשובה נכונה לשאלת האבטחה."""
+    data = request.get_json(force=True)
+    email = (data.get("email") or "").strip().lower()
+    answer = (data.get("answer") or "").strip().lower()
+    new = str(data.get("new_password") or "")
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM users WHERE email = ? AND role='parent'", (email,)
+    ).fetchone()
+    if row is None or not row["security_answer"] or \
+            not check_password_hash(row["security_answer"], answer):
+        return jsonify({"error": "התשובה שגויה 🙈"}), 400
+    if len(new) < 6:
+        return jsonify({"error": "הסיסמה החדשה חייבת להיות לפחות 6 תווים"}), 400
+    db.execute("UPDATE users SET pin = ? WHERE id = ?",
+               (generate_password_hash(new), row["id"]))
+    db.commit()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/me", methods=["GET"])
@@ -504,10 +576,13 @@ def _user_public(row):
         "role": row["role"],
         "points": row["points"],
         "emoji": row["emoji"],
+        "family_id": row["family_id"],
     }
     if row["role"] == "child":
         data["total_earned"] = row["total_earned"]
         data["level"] = level_info(row["total_earned"])
+    if row["role"] == "parent":
+        data["family_code"] = row["family_code"]
     return data
 
 
@@ -521,10 +596,11 @@ def add_child():
     emoji = (data.get("emoji") or "🙂").strip()
     if not name:
         return jsonify({"error": "צריך שם"}), 400
+    user = current_user()
     db = get_db()
     db.execute(
-        "INSERT INTO users (name, role, emoji) VALUES (?,?,?)",
-        (name, "child", emoji),
+        "INSERT INTO users (name, role, emoji, family_id) VALUES (?,?,?,?)",
+        (name, "child", emoji, user["family_id"]),
     )
     db.commit()
     return jsonify({"ok": True})
@@ -533,8 +609,11 @@ def add_child():
 @app.route("/api/children", methods=["GET"])
 @parent_required
 def list_children():
+    user = current_user()
     rows = get_db().execute(
-        "SELECT id, name, points, total_earned, emoji FROM users WHERE role='child' ORDER BY name"
+        """SELECT id, name, points, total_earned, emoji FROM users
+           WHERE role='child' AND family_id = ? ORDER BY name""",
+        (user["family_id"],),
     ).fetchall()
     out = []
     for r in rows:
@@ -549,7 +628,10 @@ def list_children():
 @app.route("/api/chores", methods=["GET"])
 @login_required
 def get_chores():
-    rows = get_db().execute("SELECT * FROM chores ORDER BY id").fetchall()
+    user = current_user()
+    rows = get_db().execute(
+        "SELECT * FROM chores WHERE family_id = ? ORDER BY id", (user["family_id"],)
+    ).fetchall()
     return jsonify([dict(r) for r in rows])
 
 
@@ -565,10 +647,11 @@ def add_chore():
         return jsonify({"error": "מספר נקודות לא תקין"}), 400
     if not title or points <= 0:
         return jsonify({"error": "צריך שם מטלה ומספר נקודות חיובי"}), 400
+    user = current_user()
     db = get_db()
     db.execute(
-        "INSERT INTO chores (title, points, emoji) VALUES (?,?,?)",
-        (title, points, emoji),
+        "INSERT INTO chores (title, points, emoji, family_id) VALUES (?,?,?,?)",
+        (title, points, emoji, user["family_id"]),
     )
     db.commit()
     return jsonify({"ok": True})
@@ -577,8 +660,10 @@ def add_chore():
 @app.route("/api/chores/<int:chore_id>", methods=["DELETE"])
 @parent_required
 def delete_chore(chore_id):
+    user = current_user()
     db = get_db()
-    db.execute("DELETE FROM chores WHERE id = ?", (chore_id,))
+    db.execute("DELETE FROM chores WHERE id = ? AND family_id = ?",
+               (chore_id, user["family_id"]))
     db.commit()
     return jsonify({"ok": True})
 
@@ -588,7 +673,11 @@ def delete_chore(chore_id):
 @app.route("/api/rewards", methods=["GET"])
 @login_required
 def get_rewards():
-    rows = get_db().execute("SELECT * FROM rewards ORDER BY cost_points").fetchall()
+    user = current_user()
+    rows = get_db().execute(
+        "SELECT * FROM rewards WHERE family_id = ? ORDER BY cost_points",
+        (user["family_id"],),
+    ).fetchall()
     return jsonify([dict(r) for r in rows])
 
 
@@ -604,10 +693,11 @@ def add_reward():
         return jsonify({"error": "מספר נקודות לא תקין"}), 400
     if not title or cost <= 0:
         return jsonify({"error": "צריך שם פרס ומחיר נקודות חיובי"}), 400
+    user = current_user()
     db = get_db()
     db.execute(
-        "INSERT INTO rewards (title, cost_points, emoji) VALUES (?,?,?)",
-        (title, cost, emoji),
+        "INSERT INTO rewards (title, cost_points, emoji, family_id) VALUES (?,?,?,?)",
+        (title, cost, emoji, user["family_id"]),
     )
     db.commit()
     return jsonify({"ok": True})
@@ -616,8 +706,10 @@ def add_reward():
 @app.route("/api/rewards/<int:reward_id>", methods=["DELETE"])
 @parent_required
 def delete_reward(reward_id):
+    user = current_user()
     db = get_db()
-    db.execute("DELETE FROM rewards WHERE id = ?", (reward_id,))
+    db.execute("DELETE FROM rewards WHERE id = ? AND family_id = ?",
+               (reward_id, user["family_id"]))
     db.commit()
     return jsonify({"ok": True})
 
@@ -638,7 +730,10 @@ def create_submission():
         return jsonify({"error": "חסר מטלה או תמונה"}), 400
 
     db = get_db()
-    chore = db.execute("SELECT * FROM chores WHERE id = ?", (chore_id,)).fetchone()
+    chore = db.execute(
+        "SELECT * FROM chores WHERE id = ? AND family_id = ?",
+        (chore_id, user["family_id"]),
+    ).fetchone()
     if chore is None:
         return jsonify({"error": "המטלה לא נמצאה"}), 404
 
@@ -679,10 +774,11 @@ def create_submission():
     db.execute(
         """INSERT INTO submissions
            (chore_id, child_id, chore_title, photo, points, created_at,
-            phash, suspicious, suspect_match, suspect_reason)
-           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            phash, suspicious, suspect_match, suspect_reason, family_id)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
         (chore["id"], user["id"], chore["title"], filename,
-         chore["points"], now_str(), phash, suspicious, suspect_match, suspect_reason),
+         chore["points"], now_str(), phash, suspicious, suspect_match,
+         suspect_reason, user["family_id"]),
     )
     db.commit()
     # שימי לב: לילד תמיד מוחזר "נשלח בהצלחה" – הוא לא יודע על החשד.
@@ -700,9 +796,9 @@ def list_submissions():
         rows = db.execute(
             """SELECT s.*, u.name AS child_name, u.emoji AS child_emoji
                FROM submissions s JOIN users u ON u.id = s.child_id
-               WHERE s.status = ?
+               WHERE s.status = ? AND s.family_id = ?
                ORDER BY s.created_at DESC""",
-            (status,),
+            (status, user["family_id"]),
         ).fetchall()
         result = []
         for r in rows:
@@ -735,7 +831,11 @@ def review_submission(sub_id):
     data = request.get_json(force=True)
     decision = data.get("decision")  # 'approve' או 'reject'
     db = get_db()
-    sub = db.execute("SELECT * FROM submissions WHERE id = ?", (sub_id,)).fetchone()
+    user = current_user()
+    sub = db.execute(
+        "SELECT * FROM submissions WHERE id = ? AND family_id = ?",
+        (sub_id, user["family_id"]),
+    ).fetchone()
     if sub is None:
         return jsonify({"error": "ההגשה לא נמצאה"}), 404
     if sub["status"] != "pending":
@@ -790,7 +890,10 @@ def create_reward_request():
     data = request.get_json(force=True)
     reward_id = data.get("reward_id")
     db = get_db()
-    reward = db.execute("SELECT * FROM rewards WHERE id = ?", (reward_id,)).fetchone()
+    reward = db.execute(
+        "SELECT * FROM rewards WHERE id = ? AND family_id = ?",
+        (reward_id, user["family_id"]),
+    ).fetchone()
     if reward is None:
         return jsonify({"error": "הפרס לא נמצא"}), 404
     if user["points"] < reward["cost_points"]:
@@ -798,10 +901,10 @@ def create_reward_request():
 
     db.execute(
         """INSERT INTO reward_requests
-           (reward_id, child_id, reward_title, cost_points, created_at)
-           VALUES (?,?,?,?,?)""",
+           (reward_id, child_id, reward_title, cost_points, created_at, family_id)
+           VALUES (?,?,?,?,?,?)""",
         (reward["id"], user["id"], reward["title"],
-         reward["cost_points"], now_str()),
+         reward["cost_points"], now_str(), user["family_id"]),
     )
     db.commit()
     return jsonify({"ok": True})
@@ -817,9 +920,9 @@ def list_reward_requests():
         rows = db.execute(
             """SELECT r.*, u.name AS child_name, u.emoji AS child_emoji, u.points AS child_points
                FROM reward_requests r JOIN users u ON u.id = r.child_id
-               WHERE r.status = ?
+               WHERE r.status = ? AND r.family_id = ?
                ORDER BY r.created_at DESC""",
-            (status,),
+            (status, user["family_id"]),
         ).fetchall()
     else:
         rows = db.execute(
@@ -838,7 +941,11 @@ def review_reward_request(req_id):
     data = request.get_json(force=True)
     decision = data.get("decision")
     db = get_db()
-    req = db.execute("SELECT * FROM reward_requests WHERE id = ?", (req_id,)).fetchone()
+    user = current_user()
+    req = db.execute(
+        "SELECT * FROM reward_requests WHERE id = ? AND family_id = ?",
+        (req_id, user["family_id"]),
+    ).fetchone()
     if req is None:
         return jsonify({"error": "הבקשה לא נמצאה"}), 404
     if req["status"] != "pending":
@@ -889,9 +996,9 @@ def create_chore_request():
             return jsonify({"error": "מספר נקודות לא תקין"}), 400
     db = get_db()
     db.execute(
-        """INSERT INTO chore_requests (child_id, title, suggested_points, created_at)
-           VALUES (?,?,?,?)""",
-        (user["id"], title, pts, now_str()),
+        """INSERT INTO chore_requests (child_id, title, suggested_points, created_at, family_id)
+           VALUES (?,?,?,?,?)""",
+        (user["id"], title, pts, now_str(), user["family_id"]),
     )
     db.commit()
     return jsonify({"ok": True})
@@ -907,8 +1014,8 @@ def list_chore_requests():
         rows = db.execute(
             """SELECT c.*, u.name AS child_name, u.emoji AS child_emoji
                FROM chore_requests c JOIN users u ON u.id = c.child_id
-               WHERE c.status = ? ORDER BY c.created_at DESC""",
-            (status,),
+               WHERE c.status = ? AND c.family_id = ? ORDER BY c.created_at DESC""",
+            (status, user["family_id"]),
         ).fetchall()
     else:
         rows = db.execute(
@@ -924,7 +1031,11 @@ def review_chore_request(req_id):
     data = request.get_json(force=True)
     decision = data.get("decision")
     db = get_db()
-    req = db.execute("SELECT * FROM chore_requests WHERE id = ?", (req_id,)).fetchone()
+    user = current_user()
+    req = db.execute(
+        "SELECT * FROM chore_requests WHERE id = ? AND family_id = ?",
+        (req_id, user["family_id"]),
+    ).fetchone()
     if req is None:
         return jsonify({"error": "הבקשה לא נמצאה"}), 404
     if req["status"] != "pending":
@@ -943,10 +1054,10 @@ def review_chore_request(req_id):
             points = req["suggested_points"]
         if not points or points <= 0:
             return jsonify({"error": "צריך לקבוע כמה נקודות שווה המטלה"}), 400
-        # המטלה החדשה נכנסת לרשימת המטלות
+        # המטלה החדשה נכנסת לרשימת המטלות של המשפחה
         db.execute(
-            "INSERT INTO chores (title, points, emoji) VALUES (?,?,?)",
-            (title, points, "🌟"),
+            "INSERT INTO chores (title, points, emoji, family_id) VALUES (?,?,?,?)",
+            (title, points, "🌟", user["family_id"]),
         )
         db.execute(
             "UPDATE chore_requests SET status='approved', reviewed_at=? WHERE id=?",
@@ -1006,9 +1117,12 @@ def stats():
 @app.route("/api/leaderboard", methods=["GET"])
 @login_required
 def leaderboard():
+    user = current_user()
     rows = get_db().execute(
         """SELECT name, emoji, points, total_earned FROM users
-           WHERE role='child' ORDER BY total_earned DESC, points DESC"""
+           WHERE role='child' AND family_id = ?
+           ORDER BY total_earned DESC, points DESC""",
+        (user["family_id"],),
     ).fetchall()
     out = []
     for r in rows:
@@ -1034,9 +1148,11 @@ def kid_bonus(kid_id):
         return jsonify({"error": "מספר נקודות לא תקין"}), 400
     if pts == 0:
         return jsonify({"error": "צריך מספר שונה מאפס"}), 400
+    user = current_user()
     db = get_db()
     kid = db.execute(
-        "SELECT * FROM users WHERE id=? AND role='child'", (kid_id,)
+        "SELECT * FROM users WHERE id=? AND role='child' AND family_id=?",
+        (kid_id, user["family_id"]),
     ).fetchone()
     if kid is None:
         return jsonify({"error": "הילד לא נמצא"}), 404
@@ -1056,11 +1172,19 @@ def kid_bonus(kid_id):
 @app.route("/api/children/<int:kid_id>", methods=["DELETE"])
 @parent_required
 def delete_kid(kid_id):
+    user = current_user()
     db = get_db()
+    # מאמתים שהילד שייך למשפחה של ההורה
+    kid = db.execute(
+        "SELECT id FROM users WHERE id=? AND role='child' AND family_id=?",
+        (kid_id, user["family_id"]),
+    ).fetchone()
+    if kid is None:
+        return jsonify({"error": "הילד לא נמצא"}), 404
     db.execute("DELETE FROM submissions WHERE child_id=?", (kid_id,))
     db.execute("DELETE FROM reward_requests WHERE child_id=?", (kid_id,))
     db.execute("DELETE FROM chore_requests WHERE child_id=?", (kid_id,))
-    db.execute("DELETE FROM users WHERE id=? AND role='child'", (kid_id,))
+    db.execute("DELETE FROM users WHERE id=?", (kid_id,))
     db.commit()
     return jsonify({"ok": True})
 

@@ -109,13 +109,13 @@ async function init() {
     renderHome();
     return;
   }
-  // אין משתמש מחובר — בודקים אם זו כניסה ראשונה (צריך הקמה)
-  const status = await api("/api/setup-status");
-  if (status.needs_setup) {
-    renderSetup();
-  } else {
-    renderLogin();
-  }
+  renderLogin();
+}
+
+// קוד המשפחה מהכתובת /f/CODE (אם קיים)
+function familyCodeFromUrl() {
+  const m = location.pathname.match(/^\/f\/([^\/?#]+)/);
+  return m ? decodeURIComponent(m[1]) : "";
 }
 
 // מסך הקמה ראשוני: ההורה בוחר שם + קוד + אימות
@@ -129,12 +129,16 @@ function renderSetup() {
     const email = $("#su-email").value.trim();
     const pass = $("#su-pass").value;
     const pass2 = $("#su-pass2").value;
+    const question = $("#su-q").value.trim();
+    const answer = $("#su-a").value.trim();
     if (!name) { err.textContent = "צריך לבחור שם"; return; }
     if (!email.includes("@")) { err.textContent = "צריך אימייל תקין"; return; }
     if (pass.length < 6) { err.textContent = "הסיסמה חייבת להיות לפחות 6 תווים"; return; }
     if (pass !== pass2) { err.textContent = "הסיסמה והאימות לא תואמים 🙈"; return; }
+    if (!question || !answer) { err.textContent = "צריך שאלת אבטחה ותשובה"; return; }
     try {
-      ME = await api("/api/setup", "POST", { name, emoji, email, password: pass });
+      ME = await api("/api/setup", "POST",
+        { name, emoji, email, password: pass, security_question: question, security_answer: answer });
       celebrate();
       renderHome();
     } catch (e) { err.textContent = e.message; }
@@ -155,27 +159,50 @@ async function renderLogin() {
   parentBtn.className = "user-pick";
   parentBtn.innerHTML = `
     <span class="ava">👑</span>
-    <div><div class="nm">הורה</div><div class="rl">כניסה עם אימייל וסיסמה</div></div>
+    <div><div class="nm">כניסת הורה</div><div class="rl">אימייל וסיסמה</div></div>
     <span class="badge-parent">הורה</span>`;
   parentBtn.onclick = openParentLogin;
   list.appendChild(parentBtn);
 
-  // פרופילי ילדים — לחיצה נכנסת ישר, בלי קוד
-  const kids = await api("/api/users");
-  kids.forEach((u) => {
-    const el = document.createElement("div");
-    el.className = "user-pick";
-    el.innerHTML = `
-      <span class="ava">${u.emoji}</span>
-      <div><div class="nm">${u.name}</div><div class="rl">ילד/ה — לחצו להיכנס</div></div>`;
-    el.onclick = async () => {
-      try {
-        ME = await api("/api/login", "POST", { user_id: u.id });
-        renderHome();
-      } catch (e) { toast(e.message); }
-    };
-    list.appendChild(el);
-  });
+  // יצירת משפחה חדשה (הרשמה)
+  const signupBtn = document.createElement("div");
+  signupBtn.className = "user-pick";
+  signupBtn.innerHTML = `
+    <span class="ava">✨</span>
+    <div><div class="nm">יצירת משפחה חדשה</div><div class="rl">הרשמה כהורה</div></div>`;
+  signupBtn.onclick = renderSetup;
+  list.appendChild(signupBtn);
+
+  // פרופילי ילדים — רק אם נכנסים דרך קישור המשפחה (/f/CODE)
+  const code = familyCodeFromUrl();
+  if (code) {
+    const kids = await api("/api/users?family_code=" + encodeURIComponent(code));
+    kids.forEach((u) => {
+      const el = document.createElement("div");
+      el.className = "user-pick";
+      el.innerHTML = `
+        <span class="ava">${u.emoji}</span>
+        <div><div class="nm">${u.name}</div><div class="rl">ילד/ה — לחצו להיכנס</div></div>`;
+      el.onclick = async () => {
+        try {
+          ME = await api("/api/login", "POST", { user_id: u.id });
+          renderHome();
+        } catch (e) { toast(e.message); }
+      };
+      list.appendChild(el);
+    });
+    if (kids.length === 0) {
+      const note = document.createElement("p");
+      note.className = "legal-consent";
+      note.textContent = "עדיין אין ילדים במשפחה הזו. ההורה יכול להוסיף מהאפליקציה.";
+      list.appendChild(note);
+    }
+  } else {
+    const note = document.createElement("p");
+    note.className = "legal-consent";
+    note.innerHTML = "👶 ילדים: היכנסו דרך <b>הקישור שההורה שלכם שלח</b> 🙂";
+    list.appendChild(note);
+  }
 }
 
 // חלון כניסת הורה (אימייל + סיסמה)
@@ -190,6 +217,7 @@ function openParentLogin() {
     <input class="ask-input pl-pass" type="password" placeholder="סיסמה">
     <div class="pin-error pl-err"></div>
     <button class="btn big" data-act="go">כניסה</button>
+    <a class="forgot-link" data-act="forgot">שכחתי סיסמה</a>
   </div>`;
   document.body.appendChild(back);
   const err = $(".pl-err", back);
@@ -204,7 +232,63 @@ function openParentLogin() {
   };
   $('[data-act="close"]', back).onclick = () => back.remove();
   $('[data-act="go"]', back).onclick = submit;
+  $('[data-act="forgot"]', back).onclick = () => { back.remove(); openForgot(); };
   $(".pl-pass", back).onkeydown = (e) => { if (e.key === "Enter") submit(); };
+}
+
+// תהליך "שכחתי סיסמה" — שאלת אבטחה
+function openForgot() {
+  const back = document.createElement("div");
+  back.className = "modal-back";
+  back.innerHTML = `<div class="modal">
+    <button class="close" data-act="close">✕</button>
+    <div class="pin-emoji">🔑</div>
+    <h2>שחזור סיסמה</h2>
+    <div class="fg-step1">
+      <input class="ask-input fg-email" type="email" placeholder="האימייל שלך">
+      <div class="pin-error fg-err"></div>
+      <button class="btn big" data-act="next">המשך</button>
+    </div>
+    <div class="fg-step2 hidden">
+      <p class="fg-q" style="font-weight:700"></p>
+      <input class="ask-input fg-ans" placeholder="התשובה">
+      <input class="ask-input fg-new" type="password" placeholder="סיסמה חדשה (לפחות 6 תווים)">
+      <input class="ask-input fg-new2" type="password" placeholder="אימות סיסמה">
+      <div class="pin-error fg-err2"></div>
+      <button class="btn big" data-act="reset">איפוס הסיסמה</button>
+    </div>
+  </div>`;
+  document.body.appendChild(back);
+  $('[data-act="close"]', back).onclick = () => back.remove();
+
+  let email = "";
+  $('[data-act="next"]', back).onclick = async () => {
+    email = $(".fg-email", back).value.trim();
+    const err = $(".fg-err", back);
+    if (!email.includes("@")) { err.textContent = "צריך אימייל תקין"; return; }
+    try {
+      const r = await api("/api/forgot/question", "POST", { email });
+      $(".fg-q", back).textContent = "שאלת האבטחה: " + r.question;
+      $(".fg-step1", back).classList.add("hidden");
+      $(".fg-step2", back).classList.remove("hidden");
+    } catch (e) { err.textContent = e.message; }
+  };
+
+  $('[data-act="reset"]', back).onclick = async () => {
+    const answer = $(".fg-ans", back).value.trim();
+    const nw = $(".fg-new", back).value;
+    const nw2 = $(".fg-new2", back).value;
+    const err = $(".fg-err2", back);
+    if (!answer) { err.textContent = "צריך לענות על השאלה"; return; }
+    if (nw.length < 6) { err.textContent = "סיסמה חייבת לפחות 6 תווים"; return; }
+    if (nw !== nw2) { err.textContent = "הסיסמאות לא תואמות 🙈"; return; }
+    try {
+      await api("/api/forgot/reset", "POST", { email, answer, new_password: nw });
+      back.remove();
+      toast("הסיסמה אופסה! אפשר להיכנס עם הסיסמה החדשה 🔐");
+      openParentLogin();
+    } catch (e) { err.textContent = e.message; }
+  };
 }
 
 function openPin(u) {
@@ -840,7 +924,14 @@ async function reviewReq(id, decision, root) {
 async function loadKids(root) {
   const box = $('[data-content="kids"]', root);
   const kids = await api("/api/children");
+  const famLink = `${location.origin}/f/${ME.family_code}`;
   let html = `<div class="card">
+    <h2>📨 הקישור של המשפחה שלך</h2>
+    <p class="s" style="margin:0 0 8px">שלחי את הקישור הזה לילדים — הם ייכנסו דרכו (בלי קוד):</p>
+    <div class="form-row"><input id="fam-link" value="${famLink}" readonly></div>
+    <button class="btn big" id="copy-link">העתקת הקישור 📋</button>
+  </div>
+  <div class="card">
     <h2>הוספת ילד/ה</h2>
     <div class="form-row">
       <input class="w-emoji" id="kid-emoji" value="🙂" maxlength="2">
@@ -867,6 +958,13 @@ async function loadKids(root) {
     </div>`;
   });
   box.innerHTML = html;
+
+  $("#copy-link", box).onclick = async () => {
+    const inp = $("#fam-link", box);
+    inp.select();
+    try { await navigator.clipboard.writeText(inp.value); } catch (e) { document.execCommand("copy"); }
+    toast("הקישור הועתק! שלחי אותו לילדים 📨");
+  };
 
   $("#add-kid", box).onclick = async () => {
     const name = $("#kid-name", box).value.trim();
