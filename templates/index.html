@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>טודו ⭐</title>
+
+  <!-- הפיכה לאפליקציה שניתן להתקין (PWA) -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#7b5cff">
+  <!-- תמיכת אייפון (Add to Home Screen כאפליקציה) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="טודו">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Varela+Round&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- מסך טעינה ראשוני -->
+  <div id="app"></div>
+
+  <!-- ========== תבניות (templates) ========== -->
+
+  <!-- מסך כניסה -->
+  <template id="tpl-login">
+    <div class="screen center">
+      <div class="logo">⭐</div>
+      <h1>טודו</h1>
+      <p class="subtitle">עושים מטלות, אוספים נקודות, מקבלים פרסים! 💰</p>
+      <div class="card">
+        <h2>מי נכנס?</h2>
+        <div id="user-list" class="user-list"></div>
+      </div>
+      <p class="legal-consent">בכניסה לאפליקציה את/ה מאשר/ת את
+        <a href="/terms" target="_blank">תנאי השימוש</a> ואת
+        <a href="/privacy" target="_blank">מדיניות הפרטיות</a>.</p>
+    </div>
+  </template>
+
+  <!-- חלון קוד -->
+  <template id="tpl-pin">
+    <div class="modal-back">
+      <div class="modal">
+        <button class="close" data-act="close-pin">✕</button>
+        <div class="pin-emoji"></div>
+        <h2 class="pin-name"></h2>
+        <p>הקלידו את הקוד</p>
+        <input type="password" inputmode="numeric" class="pin-input" maxlength="8" placeholder="••••">
+        <div class="pin-error"></div>
+        <button class="btn big" data-act="do-login">כניסה</button>
+      </div>
+    </div>
+  </template>
+
+  <!-- כותרת עליונה (אחרי כניסה) -->
+  <template id="tpl-header">
+    <header class="topbar">
+      <div class="who"></div>
+      <div class="top-actions">
+        <button class="btn ghost small" data-act="change-pin">🔑 קוד</button>
+        <button class="btn ghost small" data-act="logout">יציאה</button>
+      </div>
+    </header>
+  </template>
+
+  <!-- ===== מסך ילד ===== -->
+  <template id="tpl-child">
+    <div class="screen">
+      <div class="points-banner">
+        <div class="hero-row">
+          <span class="level-chip">🥚 רמה 1</span>
+          <span class="streak-chip">🔥 0</span>
+        </div>
+        <div class="coin">⭐</div>
+        <div class="points-num">0</div>
+        <div class="points-label">נקודות לשימוש</div>
+        <div class="progress"><div class="progress-fill"></div></div>
+        <div class="progress-text"></div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="chores">🧹 מטלות</button>
+        <button class="tab" data-tab="rewards">🎁 פרסים</button>
+        <button class="tab" data-tab="achv">🏆 הישגים</button>
+        <button class="tab" data-tab="history">📜 שלי</button>
+      </div>
+
+      <div class="tab-content" data-content="chores"></div>
+      <div class="tab-content hidden" data-content="rewards"></div>
+      <div class="tab-content hidden" data-content="achv"></div>
+      <div class="tab-content hidden" data-content="history"></div>
+    </div>
+  </template>
+
+  <!-- מסך מצלמה -->
+  <template id="tpl-camera">
+    <div class="modal-back camera-back">
+      <div class="camera-box">
+        <h2 class="cam-title"></h2>
+
+        <!-- שלב 1: בקשת אישור גישה למצלמה -->
+        <div class="cam-intro">
+          <div class="cam-intro-icon">📷</div>
+          <p class="cam-intro-text">כדי לצלם הוכחה למטלה, צריך אישור גישה למצלמה</p>
+          <button class="btn big" data-act="cam-allow">אישור גישה למצלמה 📷</button>
+          <button class="btn ghost" data-act="cam-cancel-intro">ביטול</button>
+        </div>
+
+        <!-- שלב 2: המצלמה עצמה (מוצג רק אחרי אישור) -->
+        <div class="cam-stage hidden">
+          <video class="cam-video" autoplay playsinline muted></video>
+          <canvas class="cam-canvas hidden"></canvas>
+          <img class="cam-preview hidden" alt="תצוגה">
+          <div class="cam-msg"></div>
+          <div class="cam-buttons">
+            <button class="btn ghost" data-act="cam-cancel">ביטול</button>
+            <button class="btn big" data-act="cam-shoot">📸 צילום</button>
+            <button class="btn ghost hidden" data-act="cam-retake">צלם שוב</button>
+            <button class="btn big hidden" data-act="cam-send">✅ שליחה לאישור</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ===== מסך הורה ===== -->
+  <template id="tpl-parent">
+    <div class="screen">
+      <div class="tabs">
+        <button class="tab active" data-tab="approve">✅ לאישור</button>
+        <button class="tab" data-tab="kids">👧 ילדים</button>
+        <button class="tab" data-tab="manage-chores">🧹 מטלות</button>
+        <button class="tab" data-tab="manage-rewards">🎁 פרסים</button>
+      </div>
+      <div class="tab-content" data-content="approve"></div>
+      <div class="tab-content hidden" data-content="kids"></div>
+      <div class="tab-content hidden" data-content="manage-chores"></div>
+      <div class="tab-content hidden" data-content="manage-rewards"></div>
+    </div>
+  </template>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

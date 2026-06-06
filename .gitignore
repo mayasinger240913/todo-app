@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# נתוני משתמשים — לא להעלות לאינטרנט/לגיט!
+chores.db
+uploads/
+
+# כלים מקומיים
+cloudflared.exe
+
+# מערכת
+.DS_Store
+Thumbs.db

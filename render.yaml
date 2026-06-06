@@ -1,0 +1,14 @@
+# הגדרות פריסה אוטומטית ל-Render (https://render.com)
+# מספיק להצביע את Render על המאגר הזה, והוא יקרא את הקובץ הזה.
+services:
+  - type: web
+    name: todo-chores
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true        # Render ייצר מפתח סודי אקראי
+      - key: PYTHON_VERSION
+        value: "3.12.6"

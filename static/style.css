@@ -1,0 +1,232 @@
+/* =====================================================
+   עיצוב כיפי לילדים 🎉
+   ===================================================== */
+:root{
+  --primary:#7b5cff;
+  --primary-dark:#5b3ed6;
+  --pink:#ff5ea3;
+  --orange:#ff8a3d;
+  --yellow:#ffc83d;
+  --green:#2bd47d;
+  --blue:#34c3ff;
+  --red:#ff5b6e;
+  --text:#241a4d;
+  --muted:#8b86b8;
+  --card:#ffffff;
+  --radius:22px;
+  --shadow:0 10px 26px rgba(95,70,210,.18);
+  --shadow-sm:0 4px 12px rgba(95,70,210,.14);
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Varela Round","Segoe UI",system-ui,Arial,sans-serif;
+  color:var(--text);
+  min-height:100vh;
+  background:linear-gradient(160deg,#a18cff 0%, #7b5cff 40%, #5b8dff 100%);
+  background-attachment:fixed;
+}
+/* כוכבים מרחפים ברקע */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.7) 2px, transparent 3px),
+    radial-gradient(circle, rgba(255,255,255,.5) 2px, transparent 3px);
+  background-size:90px 90px, 130px 130px;
+  background-position:0 0, 40px 60px;
+  opacity:.35;
+}
+
+h1,h2,h3{font-family:"Fredoka","Varela Round",sans-serif;font-weight:700}
+
+/* ===== מסכים ===== */
+.screen{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:14px 14px 70px}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;position:relative;z-index:1}
+.hidden{display:none !important}
+
+.logo{font-size:78px;filter:drop-shadow(0 8px 10px rgba(0,0,0,.2));animation:bounce 1.6s ease-in-out infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+h1{margin:.1em 0;font-size:34px;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.12)}
+h2{font-size:21px;margin:.2em 0 .6em}
+.subtitle{color:#f3eeff;margin-bottom:22px;font-size:16px}
+
+/* ===== כרטיסים ===== */
+.card{
+  background:var(--card);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:18px;width:100%;max-width:480px;margin:0 auto 16px;
+}
+
+/* ===== כפתורים ===== */
+.btn{
+  background:linear-gradient(180deg,var(--primary),var(--primary-dark));
+  color:#fff;border:none;border-radius:16px;
+  padding:12px 18px;font-size:16px;font-weight:700;
+  cursor:pointer;font-family:inherit;
+  box-shadow:0 5px 0 var(--primary-dark), var(--shadow-sm);
+  transition:transform .08s, box-shadow .08s;
+}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--primary-dark)}
+.btn.big{width:100%;padding:16px;font-size:19px;margin-top:10px}
+.btn.small{padding:9px 14px;font-size:14px;border-radius:14px}
+.btn.ghost{background:#efeaff;color:var(--primary-dark);box-shadow:0 4px 0 #d9cfff}
+.btn.ghost:active{box-shadow:0 1px 0 #d9cfff}
+.btn.green{background:linear-gradient(180deg,#41e08e,#1eb968);box-shadow:0 5px 0 #169a55, var(--shadow-sm)}
+.btn.green:active{box-shadow:0 1px 0 #169a55}
+.btn.red{background:linear-gradient(180deg,#ff7384,#e23b50);box-shadow:0 5px 0 #c02438, var(--shadow-sm)}
+.btn.red:active{box-shadow:0 1px 0 #c02438}
+.btn:disabled{opacity:.45;box-shadow:none;transform:none}
+
+/* ===== רשימת משתמשים בכניסה ===== */
+.user-list{display:flex;flex-direction:column;gap:12px}
+.user-pick{
+  display:flex;align-items:center;gap:14px;
+  background:linear-gradient(135deg,#f7f4ff,#efeaff);
+  border:3px solid transparent;border-radius:18px;padding:14px;cursor:pointer;
+  transition:border .15s, transform .1s;
+}
+.user-pick:active{transform:scale(.97);border-color:var(--primary)}
+.user-pick .ava{font-size:40px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.12))}
+.user-pick .nm{font-size:19px;font-weight:700}
+.user-pick .rl{font-size:13px;color:var(--muted)}
+.badge-parent{margin-inline-start:auto;background:linear-gradient(180deg,var(--yellow),var(--orange));color:#fff;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:700;box-shadow:var(--shadow-sm)}
+
+/* ===== חלונות קופצים ===== */
+.modal-back{position:fixed;inset:0;background:rgba(40,25,90,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;animation:fade .2s ease;backdrop-filter:blur(3px)}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal{background:#fff;border-radius:26px;padding:26px;width:100%;max-width:360px;text-align:center;position:relative;animation:pop .3s cubic-bezier(.2,1.3,.5,1)}
+@keyframes pop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
+.close{position:absolute;top:12px;left:12px;border:none;background:#f0ecff;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;font-weight:700;color:var(--primary-dark)}
+.pin-emoji{font-size:56px}
+.pin-input{width:100%;text-align:center;font-size:30px;letter-spacing:10px;padding:14px;margin:12px 0;border:3px solid #e3dcff;border-radius:16px;font-family:inherit}
+.pin-input:focus{outline:none;border-color:var(--primary)}
+.pin-error{color:var(--red);min-height:20px;font-size:14px;font-weight:700}
+.ask-input{width:100%;padding:13px;margin:6px 0 12px;border:3px solid #e3dcff;border-radius:14px;font-size:16px;font-family:inherit;text-align:center}
+.ask-input:focus{outline:none;border-color:var(--primary)}
+
+/* ===== כותרת עליונה ===== */
+.topbar{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.92);box-shadow:var(--shadow-sm);padding:10px 16px;position:sticky;top:0;z-index:20;border-radius:0 0 20px 20px;backdrop-filter:blur(6px)}
+.topbar .who{font-weight:700;display:flex;align-items:center;gap:8px;font-size:17px}
+.topbar .who .ava{font-size:26px}
+.top-actions{display:flex;gap:6px}
+
+/* ===== באנר נקודות ===== */
+.points-banner{
+  position:relative;overflow:hidden;text-align:center;color:#fff;
+  background:linear-gradient(135deg,var(--pink),var(--orange));
+  border-radius:26px;padding:24px 22px 20px;margin:14px 0;
+  box-shadow:var(--shadow);
+}
+.points-banner .coin{font-size:40px;animation:spin 3s linear infinite;display:inline-block}
+@keyframes spin{0%{transform:rotateY(0)}100%{transform:rotateY(360deg)}}
+.points-num{font-size:56px;font-weight:800;line-height:1;font-family:"Fredoka",sans-serif;text-shadow:0 4px 0 rgba(0,0,0,.12)}
+.points-label{opacity:.95;margin-top:4px;font-size:15px}
+.progress{height:16px;background:rgba(255,255,255,.35);border-radius:20px;margin:14px 0 6px;overflow:hidden}
+.progress-fill{height:100%;width:0;border-radius:20px;background:linear-gradient(90deg,#fff7d6,#ffe16b);transition:width .8s cubic-bezier(.2,1,.4,1);box-shadow:0 0 12px rgba(255,225,107,.8)}
+.progress-text{font-size:13px;opacity:.95}
+
+/* ===== טאבים ===== */
+.tabs{display:flex;gap:6px;background:rgba(255,255,255,.85);border-radius:18px;padding:6px;margin-bottom:14px;overflow-x:auto;box-shadow:var(--shadow-sm)}
+.tab{flex:1;white-space:nowrap;border:none;background:transparent;padding:11px 8px;border-radius:13px;font-size:14px;font-weight:700;color:var(--primary-dark);cursor:pointer;font-family:inherit;transition:.15s}
+.tab.active{background:linear-gradient(180deg,var(--primary),var(--primary-dark));color:#fff;box-shadow:var(--shadow-sm)}
+
+/* ===== פריטי רשימה ===== */
+.item{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:18px;padding:14px;box-shadow:var(--shadow-sm);margin-bottom:11px;animation:slidein .35s ease both}
+@keyframes slidein{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.item .emoji{font-size:34px;filter:drop-shadow(0 3px 3px rgba(0,0,0,.1))}
+.item .info{flex:1;min-width:0}
+.item .info .t{font-weight:700;font-size:16px}
+.item .info .s{font-size:13px;color:var(--muted);margin-top:2px}
+.pts{background:linear-gradient(180deg,#fff0c4,#ffe08a);color:#a05a00;border-radius:20px;padding:6px 13px;font-weight:800;white-space:nowrap;box-shadow:inset 0 -2px 0 rgba(0,0,0,.06)}
+.cost{background:linear-gradient(180deg,#ffd9e4,#ffb3c8);color:#b51e4c;border-radius:20px;padding:6px 13px;font-weight:800;white-space:nowrap;box-shadow:inset 0 -2px 0 rgba(0,0,0,.06)}
+
+.empty{text-align:center;color:#fff;padding:36px 10px;background:rgba(255,255,255,.14);border-radius:18px;font-weight:600}
+.empty .big-emoji{font-size:54px;display:block;margin-bottom:10px;animation:bounce 1.8s ease-in-out infinite}
+
+/* קלף בתוך טאב תוכן (כותרות לבנות מעל הרקע) */
+.tab-content > h2{color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.12);margin:6px 2px 10px}
+
+/* ===== מצלמה ===== */
+.camera-box{background:#1c1530;border-radius:26px;padding:18px;width:100%;max-width:420px;text-align:center;color:#fff}
+.cam-title{color:#fff}
+.cam-intro{padding:20px 6px;display:flex;flex-direction:column;gap:12px;align-items:center}
+.cam-intro-icon{font-size:64px;animation:bounce 1.8s ease-in-out infinite}
+.cam-intro-text{margin:0;font-size:16px;line-height:1.5;color:#e8e2ff}
+.cam-intro .btn{width:100%}
+.cam-video,.cam-canvas,.cam-preview{width:100%;border-radius:18px;background:#000;aspect-ratio:3/4;object-fit:cover}
+.cam-msg{min-height:22px;margin:8px 0;font-size:14px;color:var(--yellow);font-weight:700}
+.cam-buttons{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.cam-buttons .btn{flex:1;min-width:120px}
+
+/* הוכחה (תמונה אצל הורה) */
+.proof{width:100%;border-radius:14px;margin-top:8px;max-height:320px;object-fit:cover}
+.review-card{display:block}
+.review-actions{display:flex;gap:8px;margin-top:10px;align-items:center}
+.review-actions .btn{flex:1}
+.pts-edit{width:64px;text-align:center;padding:10px;border:3px solid #e3dcff;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700}
+
+/* התראת חשד לרמאות (מסך הורה בלבד) */
+.review-card.suspect{border:3px solid var(--red);box-shadow:0 0 0 4px rgba(255,91,110,.15), var(--shadow-sm)}
+.suspect-banner{background:linear-gradient(180deg,#ffe0e4,#ffc9d1);color:#b51e4c;font-weight:800;border-radius:14px;padding:10px 12px;margin:6px 0;text-align:center;font-size:14px;animation:shake .5s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.compare{display:flex;gap:8px}
+.compare figure{flex:1;margin:0}
+.compare figure img{width:100%;border-radius:12px;max-height:240px;object-fit:cover}
+.compare figcaption{text-align:center;font-size:12px;color:var(--muted);font-weight:700;margin-top:4px}
+.suspect-reason{background:#fff6e6;color:#9a5b00;border-radius:12px;padding:8px 12px;margin:6px 0;font-size:13px;font-weight:700}
+.penalty-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;background:#fff0f2;border-radius:14px;padding:10px}
+.penalty-row span{font-weight:700;font-size:14px}
+.penalty-row .pen-input{width:70px;text-align:center;padding:9px;border:3px solid #ffd0d8;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700}
+.penalty-row .btn{flex:1;min-width:140px}
+
+.status-pill{border-radius:20px;padding:4px 11px;font-size:12px;font-weight:700;white-space:nowrap}
+.status-pending{background:#fff0c4;color:#a05a00}
+.status-approved{background:#cdf6e0;color:#0f8a4d}
+.status-rejected{background:#ffd9e4;color:#b51e4c}
+
+/* ===== טפסים ===== */
+.form-row{display:flex;gap:8px;margin-bottom:10px}
+.form-row input{flex:1;padding:12px;border:3px solid #ece7ff;border-radius:14px;font-size:15px;font-family:inherit;min-width:0;background:#faf9ff}
+.form-row input:focus{outline:none;border-color:var(--primary);background:#fff}
+.form-row input.w-emoji{flex:0 0 56px;text-align:center;font-size:20px}
+.form-row input.w-pts{flex:0 0 84px;text-align:center}
+
+/* ===== toast ===== */
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#241a4d;color:#fff;padding:14px 22px;border-radius:30px;box-shadow:0 10px 28px rgba(0,0,0,.3);z-index:100;font-weight:700;animation:slideup .3s ease;max-width:90%;text-align:center;font-size:15px}
+@keyframes slideup{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ===== רמה ורצף בבאנר ===== */
+.hero-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.level-chip,.streak-chip{background:rgba(255,255,255,.28);border-radius:20px;padding:5px 13px;font-weight:700;font-size:14px;backdrop-filter:blur(4px)}
+
+/* מונה ממתינים על טאב */
+.badge{display:inline-block;min-width:20px;background:var(--red);color:#fff;border-radius:20px;padding:1px 7px;font-size:12px;font-weight:800;margin-inline-start:2px}
+
+/* ===== כרטיס רמה (טאב הישגים) ===== */
+.level-card{background:var(--card);border-radius:22px;padding:22px;text-align:center;box-shadow:var(--shadow);margin-bottom:14px}
+.level-big{font-size:72px;animation:bounce 2s ease-in-out infinite}
+.level-title{font-family:"Fredoka",sans-serif;font-size:22px;font-weight:700;margin-top:4px}
+.level-sub{color:var(--muted);font-size:14px;margin-top:4px}
+
+/* שורת סטטיסטיקות */
+.stat-row{display:flex;gap:10px;margin-bottom:14px}
+.stat-box{flex:1;background:var(--card);border-radius:16px;padding:14px 6px;text-align:center;box-shadow:var(--shadow-sm)}
+.stat-box .n{font-size:26px;font-weight:800;font-family:"Fredoka",sans-serif;color:var(--primary)}
+.stat-box .l{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* רשת מדליות */
+.achv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:8px}
+.achv{background:var(--card);border-radius:16px;padding:14px 6px;text-align:center;box-shadow:var(--shadow-sm)}
+.achv.locked{opacity:.5;filter:grayscale(.6)}
+.achv.got{animation:pop .4s cubic-bezier(.2,1.3,.5,1)}
+.achv-emoji{font-size:34px}
+.achv-name{font-size:12px;font-weight:700;margin-top:4px}
+
+/* ===== קישורי מדיניות במסך הכניסה ===== */
+.legal-consent{color:#efeaff;font-size:13px;margin-top:14px;max-width:420px;line-height:1.6}
+.legal-consent a{color:#fff;font-weight:700}
+
+/* ===== קונפטי ===== */
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:200}
