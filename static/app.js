@@ -134,16 +134,12 @@ function renderSetup() {
     const email = $("#su-email").value.trim();
     const pass = $("#su-pass").value;
     const pass2 = $("#su-pass2").value;
-    const question = $("#su-q").value.trim();
-    const answer = $("#su-a").value.trim();
     if (!name) { err.textContent = "צריך לבחור שם"; return; }
     if (!email.includes("@")) { err.textContent = "צריך אימייל תקין"; return; }
     if (!passwordOk(pass)) { err.textContent = "הסיסמה חייבת לכלול אותיות ומספרים, לפחות 6 תווים"; return; }
     if (pass !== pass2) { err.textContent = "הסיסמה והאימות לא תואמים 🙈"; return; }
-    if (!question || !answer) { err.textContent = "צריך שאלת אבטחה ותשובה (לשחזור סיסמה)"; return; }
     try {
-      ME = await api("/api/setup", "POST",
-        { name, emoji, email, password: pass, security_question: question, security_answer: answer });
+      ME = await api("/api/setup", "POST", { name, emoji, email, password: pass });
       localStorage.setItem("parentEmail", email);  // לזכור למכשיר הזה
       celebrate();
       renderHome();
@@ -257,7 +253,7 @@ function openParentLogin() {
   setTimeout(() => { (saved ? $(".pl-pass", back) : $(".pl-email", back)).focus(); }, 50);
 }
 
-// תהליך "שכחתי סיסמה" — שאלת אבטחה → סיסמה חדשה
+// תהליך "שכחתי סיסמה" — קוד נשלח לאימייל → סיסמה חדשה
 function openForgot() {
   const back = document.createElement("div");
   back.className = "modal-back";
@@ -266,45 +262,46 @@ function openForgot() {
     <div class="pin-emoji">🔑</div>
     <h2>שחזור סיסמה</h2>
     <div class="fg-step1">
+      <p style="font-size:14px;color:var(--muted)">נשלח קוד איפוס לאימייל שלך</p>
       <input class="ask-input fg-email" type="email" placeholder="האימייל שלך">
       <div class="pin-error fg-err"></div>
-      <button class="btn big" data-act="next">המשך</button>
+      <button class="btn big" data-act="send">שליחת קוד למייל 📧</button>
     </div>
     <div class="fg-step2 hidden">
-      <p class="fg-q" style="font-weight:700"></p>
-      <input class="ask-input fg-ans" placeholder="התשובה לשאלת האבטחה">
+      <p style="font-weight:700">📧 שלחנו קוד בן 6 ספרות למייל שלך</p>
+      <input class="ask-input fg-code" inputmode="numeric" placeholder="הקוד מהמייל">
       <input class="ask-input fg-new" type="password" placeholder="סיסמה חדשה (אותיות ומספרים, לפחות 6)">
       <input class="ask-input fg-new2" type="password" placeholder="אימות סיסמה">
       <div class="pin-error fg-err2"></div>
-      <button class="btn big" data-act="reset">איפוס הסיסמה</button>
+      <button class="btn big" data-act="verify">איפוס הסיסמה</button>
     </div>
   </div>`;
   document.body.appendChild(back);
   $('[data-act="close"]', back).onclick = () => back.remove();
 
   let email = "";
-  $('[data-act="next"]', back).onclick = async () => {
+  $('[data-act="send"]', back).onclick = async () => {
     email = $(".fg-email", back).value.trim();
     const err = $(".fg-err", back);
     if (!email.includes("@")) { err.textContent = "צריך אימייל תקין"; return; }
+    err.textContent = "שולח...";
     try {
-      const r = await api("/api/forgot/question", "POST", { email });
-      $(".fg-q", back).textContent = "שאלת האבטחה: " + r.question;
+      await api("/api/forgot/send", "POST", { email });
       $(".fg-step1", back).classList.add("hidden");
       $(".fg-step2", back).classList.remove("hidden");
     } catch (e) { err.textContent = e.message; }
   };
 
-  $('[data-act="reset"]', back).onclick = async () => {
-    const answer = $(".fg-ans", back).value.trim();
+  $('[data-act="verify"]', back).onclick = async () => {
+    const code = $(".fg-code", back).value.trim();
     const nw = $(".fg-new", back).value;
     const nw2 = $(".fg-new2", back).value;
     const err = $(".fg-err2", back);
-    if (!answer) { err.textContent = "צריך לענות על השאלה"; return; }
+    if (!code) { err.textContent = "צריך להקליד את הקוד מהמייל"; return; }
     if (!passwordOk(nw)) { err.textContent = "סיסמה חייבת אותיות ומספרים, לפחות 6 תווים"; return; }
     if (nw !== nw2) { err.textContent = "הסיסמאות לא תואמות 🙈"; return; }
     try {
-      await api("/api/forgot/reset", "POST", { email, answer, new_password: nw });
+      await api("/api/forgot/verify", "POST", { email, code, new_password: nw });
       back.remove();
       toast("הסיסמה אופסה! אפשר להיכנס עם הסיסמה החדשה 🔐");
       openParentLogin();

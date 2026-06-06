@@ -15,6 +15,8 @@
 import os
 import sqlite3
 import secrets
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime, date, timedelta
 from functools import wraps
 
@@ -36,6 +38,33 @@ app = Flask(__name__)
 # מפתח להצפנת ה-session. בייצור מגיע ממשתנה סביבה SECRET_KEY (סודי),
 # ובפיתוח יש ערך ברירת מחדל.
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-secret-change-in-production")
+
+# הגדרות שליחת מייל (לשחזור סיסמה). מגיעות ממשתני סביבה.
+# ברירת מחדל ל-Gmail; SMTP_USER ו-SMTP_PASS הם המייל וסיסמת-האפליקציה.
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
+
+
+def send_email(to, subject, body):
+    """שולח מייל. מחזיר True אם הצליח. אם לא הוגדר SMTP — מחזיר False."""
+    if not SMTP_USER or not SMTP_PASS:
+        return False
+    msg = EmailMessage()
+    msg["From"] = SMTP_USER
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.set_content(body)
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as s:
+            s.starttls()
+            s.login(SMTP_USER, SMTP_PASS)
+            s.send_message(msg)
+        return True
+    except Exception as e:
+        print(">> שגיאת שליחת מייל:", e)
+        return False
 
 
 # ---------- חיבור למסד הנתונים ----------
@@ -111,8 +140,8 @@ def init_db():
             total_earned INTEGER NOT NULL DEFAULT 0, -- נקודות לכל החיים (קובעות רמה)
             emoji    TEXT NOT NULL DEFAULT '🙂',
             email    TEXT,                         -- להורה בלבד (כניסה עם אימייל)
-            security_question TEXT,                -- לשחזור סיסמה
-            security_answer   TEXT,                -- תשובה (מוצפנת)
+            reset_code    TEXT,                    -- קוד איפוס סיסמה (מוצפן)
+            reset_expires TEXT,                    -- מתי הקוד פג תוקף
             family_id   INTEGER,                   -- לאיזו משפחה המשתמש שייך
             family_code TEXT                       -- קוד ייחודי למשפחה (להורה בלבד)
         );
@@ -500,8 +529,6 @@ def setup():
     emoji = (data.get("emoji") or "👑").strip()
     email = (data.get("email") or "").strip().lower()
     password = str(data.get("password") or "")
-    question = (data.get("security_question") or "").strip()
-    answer = (data.get("security_answer") or "").strip().lower()
     if not name:
         return jsonify({"error": "צריך לבחור שם"}), 400
     if "@" not in email or "." not in email.split("@")[-1]:
@@ -510,16 +537,9 @@ def setup():
         return jsonify({"error": "הסיסמה חייבת לכלול אותיות ומספרים, לפחות 6 תווים"}), 400
     if db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
         return jsonify({"error": "האימייל כבר בשימוש"}), 400
-    # שאלת אבטחה — לא חובה (רק אם מילאו את שניהם נשמור אותה לשחזור)
-    has_security = bool(question and answer)
-    q_store = question if has_security else None
-    a_store = generate_password_hash(answer) if has_security else None
     cur = db.execute(
-        """INSERT INTO users (name, role, pin, emoji, email,
-                              security_question, security_answer)
-           VALUES (?,?,?,?,?,?,?)""",
-        (name, "parent", generate_password_hash(password), emoji, email,
-         q_store, a_store),
+        "INSERT INTO users (name, role, pin, emoji, email) VALUES (?,?,?,?,?)",
+        (name, "parent", generate_password_hash(password), emoji, email),
     )
     pid = cur.lastrowid
     code = secrets.token_hex(4)  # קוד משפחה ייחודי (8 תווים)
@@ -534,40 +554,62 @@ def setup():
     return jsonify(_user_public(row))
 
 
-@app.route("/api/forgot/question", methods=["POST"])
-def forgot_question():
-    """מחזיר את שאלת האבטחה של ההורה לפי האימייל (לשחזור סיסמה)."""
+@app.route("/api/forgot/send", methods=["POST"])
+def forgot_send():
+    """שולח קוד איפוס בן 6 ספרות לאימייל של ההורה."""
     data = request.get_json(force=True)
     email = (data.get("email") or "").strip().lower()
-    row = get_db().execute(
-        "SELECT security_question FROM users WHERE email = ? AND role='parent'",
-        (email,),
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM users WHERE email = ? AND role='parent'", (email,)
     ).fetchone()
     if row is None:
         return jsonify({"error": "לא נמצא חשבון הורה עם האימייל הזה"}), 404
-    if not row["security_question"]:
-        return jsonify({"error": "לחשבון הזה לא הוגדרה שאלת אבטחה, אז אי אפשר לשחזר אוטומטית 😕"}), 400
-    return jsonify({"question": row["security_question"]})
+    code = str(secrets.randbelow(900000) + 100000)  # קוד בן 6 ספרות
+    expires = (datetime.now() + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
+    db.execute(
+        "UPDATE users SET reset_code = ?, reset_expires = ? WHERE id = ?",
+        (generate_password_hash(code), expires, row["id"]),
+    )
+    db.commit()
+    sent = send_email(
+        email,
+        "קוד איפוס סיסמה - טודו",
+        f"שלום!\n\nקוד איפוס הסיסמה שלך לאפליקציית טודו הוא: {code}\n"
+        f"הקוד תקף ל-30 דקות.\n\nאם לא ביקשת לאפס סיסמה, אפשר להתעלם מהמייל.",
+    )
+    if not sent:
+        return jsonify({"error": "שליחת המייל נכשלה — צריך להגדיר את שליחת המיילים בשרת"}), 500
+    return jsonify({"ok": True})
 
 
-@app.route("/api/forgot/reset", methods=["POST"])
-def forgot_reset():
-    """מאפס סיסמה אחרי תשובה נכונה לשאלת האבטחה."""
+@app.route("/api/forgot/verify", methods=["POST"])
+def forgot_verify():
+    """מאמת את הקוד מהמייל ומאפס סיסמה."""
     data = request.get_json(force=True)
     email = (data.get("email") or "").strip().lower()
-    answer = (data.get("answer") or "").strip().lower()
+    code = str(data.get("code") or "").strip()
     new = str(data.get("new_password") or "")
     db = get_db()
     row = db.execute(
         "SELECT * FROM users WHERE email = ? AND role='parent'", (email,)
     ).fetchone()
-    if row is None or not row["security_answer"] or \
-            not check_password_hash(row["security_answer"], answer):
-        return jsonify({"error": "התשובה שגויה 🙈"}), 400
+    if row is None or not row["reset_code"]:
+        return jsonify({"error": "לא התבקש איפוס לחשבון הזה"}), 400
+    try:
+        exp = datetime.strptime(row["reset_expires"], "%Y-%m-%d %H:%M:%S")
+    except (TypeError, ValueError):
+        exp = None
+    if exp is None or datetime.now() > exp:
+        return jsonify({"error": "הקוד פג תוקף — בקשו קוד חדש"}), 400
+    if not check_password_hash(row["reset_code"], code):
+        return jsonify({"error": "הקוד שגוי 🙈"}), 400
     if not password_ok(new):
         return jsonify({"error": "הסיסמה החדשה חייבת לכלול אותיות ומספרים, לפחות 6 תווים"}), 400
-    db.execute("UPDATE users SET pin = ? WHERE id = ?",
-               (generate_password_hash(new), row["id"]))
+    db.execute(
+        "UPDATE users SET pin = ?, reset_code = NULL, reset_expires = NULL WHERE id = ?",
+        (generate_password_hash(new), row["id"]),
+    )
     db.commit()
     return jsonify({"ok": True})
 
