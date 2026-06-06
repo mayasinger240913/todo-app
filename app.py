@@ -129,17 +129,9 @@ def init_db():
         """
     )
 
-    # אם אין משתמשים בכלל — זה הרצה ראשונה, אז נזרע נתוני דוגמה.
-    existing = db.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
-    if existing == 0:
-        db.execute(
-            "INSERT INTO users (name, role, pin, emoji) VALUES (?,?,?,?)",
-            ("הורה", "parent", generate_password_hash("1234"), "👑"),
-        )
-        db.execute(
-            "INSERT INTO users (name, role, pin, points, emoji) VALUES (?,?,?,?,?)",
-            ("דני", "child", generate_password_hash("1111"), 0, "🦊"),
-        )
+    # זורעים מטלות ופרסים לדוגמה (אם הטבלאות ריקות) — בלי חשבונות דמו.
+    # ההורה ייצור את החשבון שלו במסך ההקמה בכניסה הראשונה.
+    if db.execute("SELECT COUNT(*) AS c FROM chores").fetchone()["c"] == 0:
         # מטלות לדוגמה
         sample_chores = [
             ("לסדר את החדר", 20, "🛏️"),
@@ -176,9 +168,7 @@ def init_db():
             sample_rewards,
         )
         db.commit()
-        print(">> נוצר מסד נתונים חדש עם נתוני דוגמה.")
-        print(">> הורה: שם 'הורה', קוד 1234")
-        print(">> ילד:  שם 'דני', קוד 1111")
+        print(">> נזרעו מטלות ופרסים לדוגמה. ההורה ייצור חשבון במסך ההקמה.")
 
     db.close()
 
@@ -441,6 +431,40 @@ def change_pin():
     db.execute("UPDATE users SET pin = ? WHERE id = ?", (generate_password_hash(new), user["id"]))
     db.commit()
     return jsonify({"ok": True})
+
+
+@app.route("/api/setup-status", methods=["GET"])
+def setup_status():
+    """האם צריך הקמה ראשונית? (כלומר עדיין אין חשבון הורה)"""
+    n = get_db().execute(
+        "SELECT COUNT(*) AS c FROM users WHERE role='parent'"
+    ).fetchone()["c"]
+    return jsonify({"needs_setup": n == 0})
+
+
+@app.route("/api/setup", methods=["POST"])
+def setup():
+    """יצירת חשבון ההורה הראשון (רק אם עדיין אין הורה)."""
+    db = get_db()
+    n = db.execute("SELECT COUNT(*) AS c FROM users WHERE role='parent'").fetchone()["c"]
+    if n > 0:
+        return jsonify({"error": "כבר קיים חשבון הורה"}), 403
+    data = request.get_json(force=True)
+    name = (data.get("name") or "").strip()
+    emoji = (data.get("emoji") or "👑").strip()
+    pin = str(data.get("pin") or "").strip()
+    if not name:
+        return jsonify({"error": "צריך לבחור שם"}), 400
+    if len(pin) < 4:
+        return jsonify({"error": "הקוד חייב להיות לפחות 4 ספרות"}), 400
+    cur = db.execute(
+        "INSERT INTO users (name, role, pin, emoji) VALUES (?,?,?,?)",
+        (name, "parent", generate_password_hash(pin), emoji),
+    )
+    db.commit()
+    row = db.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)).fetchone()
+    session["user_id"] = row["id"]  # מתחברים אוטומטית
+    return jsonify(_user_public(row))
 
 
 @app.route("/api/me", methods=["GET"])

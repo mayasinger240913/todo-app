@@ -42,6 +42,29 @@
     </div>
   </template>
 
+  <!-- מסך הקמה ראשוני (כניסה ראשונה - יצירת חשבון הורה) -->
+  <template id="tpl-setup">
+    <div class="screen center">
+      <div class="logo">⭐</div>
+      <h1>ברוכים הבאים לטודו!</h1>
+      <p class="subtitle">בהקמה ראשונה — צרו את חשבון ההורה 👑</p>
+      <div class="card">
+        <h2>חשבון הורה</h2>
+        <div class="form-row">
+          <input class="w-emoji" id="su-emoji" value="👑" maxlength="2">
+          <input id="su-name" placeholder="השם שלך (הורה)">
+        </div>
+        <input class="ask-input" id="su-pin" type="password" inputmode="numeric" placeholder="בחרו קוד (לפחות 4 ספרות)">
+        <input class="ask-input" id="su-pin2" type="password" inputmode="numeric" placeholder="אימות הקוד">
+        <div class="pin-error" id="su-err"></div>
+        <button class="btn big" id="su-go">יצירת חשבון 🚀</button>
+      </div>
+      <p class="legal-consent">ביצירת חשבון את/ה מאשר/ת את
+        <a href="/terms" target="_blank">תנאי השימוש</a> ואת
+        <a href="/privacy" target="_blank">מדיניות הפרטיות</a>.</p>
+    </div>
+  </template>
+
   <!-- חלון קוד -->
   <template id="tpl-pin">
     <div class="modal-back">

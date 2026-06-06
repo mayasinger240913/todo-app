@@ -107,9 +107,36 @@ async function init() {
   if (user) {
     ME = user;
     renderHome();
+    return;
+  }
+  // אין משתמש מחובר — בודקים אם זו כניסה ראשונה (צריך הקמה)
+  const status = await api("/api/setup-status");
+  if (status.needs_setup) {
+    renderSetup();
   } else {
     renderLogin();
   }
+}
+
+// מסך הקמה ראשוני: ההורה בוחר שם + קוד + אימות
+function renderSetup() {
+  app.innerHTML = "";
+  app.appendChild(tpl("tpl-setup"));
+  const err = $("#su-err");
+  $("#su-go").onclick = async () => {
+    const name = $("#su-name").value.trim();
+    const emoji = $("#su-emoji").value.trim() || "👑";
+    const pin = $("#su-pin").value.trim();
+    const pin2 = $("#su-pin2").value.trim();
+    if (!name) { err.textContent = "צריך לבחור שם"; return; }
+    if (pin.length < 4) { err.textContent = "הקוד חייב להיות לפחות 4 ספרות"; return; }
+    if (pin !== pin2) { err.textContent = "הקוד והאימות לא תואמים 🙈"; return; }
+    try {
+      ME = await api("/api/setup", "POST", { name, emoji, pin });
+      celebrate();
+      renderHome();
+    } catch (e) { err.textContent = e.message; }
+  };
 }
 
 // ===================================================
