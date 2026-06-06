@@ -69,12 +69,60 @@ def send_email(to, subject, body):
 
 # ---------- חיבור למסד הנתונים ----------
 
+# מקומי: SQLite. בייצור: PostgreSQL (אם הוגדר DATABASE_URL) — שהנתונים יישמרו לתמיד.
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+USE_PG = bool(DATABASE_URL)
+if USE_PG:
+    import psycopg2
+    import psycopg2.extras
+
+
+class DB:
+    """עטיפה אחידה ל-SQLite (מקומי) ול-PostgreSQL (ייצור)."""
+
+    def __init__(self):
+        if USE_PG:
+            self.conn = psycopg2.connect(DATABASE_URL)
+        else:
+            self.conn = sqlite3.connect(DB_PATH)
+            self.conn.row_factory = sqlite3.Row
+            self.conn.execute("PRAGMA foreign_keys = ON")
+
+    def _q(self, sql):
+        # SQLite משתמש ב-? ל-placeholder, ו-PostgreSQL ב-%s
+        return sql.replace("?", "%s") if USE_PG else sql
+
+    def execute(self, sql, params=()):
+        if USE_PG:
+            cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            cur = self.conn.cursor()
+        cur.execute(self._q(sql), params)
+        return cur
+
+    def executemany(self, sql, seq):
+        cur = self.conn.cursor()
+        cur.executemany(self._q(sql), seq)
+        return cur
+
+    def insert_returning_id(self, sql, params):
+        """מחזיר את ה-id של השורה החדשה (עובד בשני סוגי מסד הנתונים)."""
+        if USE_PG:
+            cur = self.execute(sql + " RETURNING id", params)
+            return cur.fetchone()["id"]
+        return self.execute(sql, params).lastrowid
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+
+
 def get_db():
     """מחזיר חיבור למסד הנתונים (אחד לכל בקשה)."""
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row  # מאפשר לגשת לעמודות לפי שם
-        g.db.execute("PRAGMA foreign_keys = ON")
+        g.db = DB()
     return g.db
 
 
@@ -126,88 +174,78 @@ def seed_family(db, family_id):
 
 
 def init_db():
-    """יוצר את הטבלאות. הנתונים מופרדים לפי family_id (כל משפחה בנפרד)."""
-    db = sqlite3.connect(DB_PATH)
-    db.row_factory = sqlite3.Row
-    db.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id       INTEGER PRIMARY KEY AUTOINCREMENT,
-            name     TEXT NOT NULL,
-            role     TEXT NOT NULL,            -- 'parent' או 'child'
-            pin      TEXT,                     -- סיסמת ההורה (להורה בלבד; ילדים בלי)
-            points   INTEGER NOT NULL DEFAULT 0,   -- נקודות לשימוש (יורדות בפרסים)
-            total_earned INTEGER NOT NULL DEFAULT 0, -- נקודות לכל החיים (קובעות רמה)
-            emoji    TEXT NOT NULL DEFAULT '🙂',
-            email    TEXT,                         -- להורה בלבד (כניסה עם אימייל)
-            reset_code    TEXT,                    -- קוד איפוס סיסמה (מוצפן)
-            reset_expires TEXT,                    -- מתי הקוד פג תוקף
-            family_id   INTEGER,                   -- לאיזו משפחה המשתמש שייך
-            family_code TEXT                       -- קוד ייחודי למשפחה (להורה בלבד)
-        );
-
-        CREATE TABLE IF NOT EXISTS chores (
-            id      INTEGER PRIMARY KEY AUTOINCREMENT,
-            title   TEXT NOT NULL,
-            points  INTEGER NOT NULL,
-            emoji   TEXT NOT NULL DEFAULT '🧹',
+    """יוצר את הטבלאות. עובד גם ב-SQLite (מקומי) וגם ב-PostgreSQL (ייצור)."""
+    pk = "SERIAL PRIMARY KEY" if USE_PG else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    statements = [
+        f"""CREATE TABLE IF NOT EXISTS users (
+            id {pk},
+            name TEXT NOT NULL,
+            role TEXT NOT NULL,
+            pin TEXT,
+            points INTEGER NOT NULL DEFAULT 0,
+            total_earned INTEGER NOT NULL DEFAULT 0,
+            emoji TEXT NOT NULL DEFAULT '🙂',
+            email TEXT,
+            reset_code TEXT,
+            reset_expires TEXT,
+            family_id INTEGER,
+            family_code TEXT
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS chores (
+            id {pk},
+            title TEXT NOT NULL,
+            points INTEGER NOT NULL,
+            emoji TEXT NOT NULL DEFAULT '🧹',
             family_id INTEGER NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS rewards (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            title        TEXT NOT NULL,
-            cost_points  INTEGER NOT NULL,
-            emoji        TEXT NOT NULL DEFAULT '🎁',
-            family_id    INTEGER NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS submissions (
-            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-            chore_id       INTEGER,
-            child_id       INTEGER NOT NULL,
-            chore_title    TEXT NOT NULL,      -- שומרים עותק למקרה שהמטלה תימחק
-            photo          TEXT NOT NULL,      -- שם קובץ התמונה
-            status         TEXT NOT NULL DEFAULT 'pending',  -- pending/approved/rejected
-            points         INTEGER NOT NULL,   -- כמה נקודות שווה (עותק)
-            created_at     TEXT NOT NULL,
-            reviewed_at    TEXT,
-            phash          TEXT,               -- טביעת אצבע של התמונה
-            suspicious     INTEGER NOT NULL DEFAULT 0,  -- 1 = חשד לרמאות
-            suspect_match  INTEGER,            -- id ההגשה הקודמת שהתמונה דומה לה
-            suspect_reason TEXT,               -- הסבר למה יש חשד (מהסוכן)
-            family_id      INTEGER NOT NULL,
-            FOREIGN KEY (child_id) REFERENCES users(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS reward_requests (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            reward_id     INTEGER,
-            child_id      INTEGER NOT NULL,
-            reward_title  TEXT NOT NULL,       -- עותק
-            cost_points   INTEGER NOT NULL,    -- עותק
-            status        TEXT NOT NULL DEFAULT 'pending',
-            created_at    TEXT NOT NULL,
-            reviewed_at   TEXT,
-            family_id     INTEGER NOT NULL,
-            FOREIGN KEY (child_id) REFERENCES users(id)
-        );
-
-        -- מטלות שילדים מציעים, וההורה מאשר (וקובע נקודות)
-        CREATE TABLE IF NOT EXISTS chore_requests (
-            id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            child_id         INTEGER NOT NULL,
-            title            TEXT NOT NULL,
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS rewards (
+            id {pk},
+            title TEXT NOT NULL,
+            cost_points INTEGER NOT NULL,
+            emoji TEXT NOT NULL DEFAULT '🎁',
+            family_id INTEGER NOT NULL
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS submissions (
+            id {pk},
+            chore_id INTEGER,
+            child_id INTEGER NOT NULL,
+            chore_title TEXT NOT NULL,
+            photo TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            points INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            reviewed_at TEXT,
+            phash TEXT,
+            suspicious INTEGER NOT NULL DEFAULT 0,
+            suspect_match INTEGER,
+            suspect_reason TEXT,
+            family_id INTEGER NOT NULL
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS reward_requests (
+            id {pk},
+            reward_id INTEGER,
+            child_id INTEGER NOT NULL,
+            reward_title TEXT NOT NULL,
+            cost_points INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            reviewed_at TEXT,
+            family_id INTEGER NOT NULL
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS chore_requests (
+            id {pk},
+            child_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
             suggested_points INTEGER NOT NULL,
-            status           TEXT NOT NULL DEFAULT 'pending',
-            created_at       TEXT NOT NULL,
-            reviewed_at      TEXT,
-            family_id        INTEGER NOT NULL,
-            FOREIGN KEY (child_id) REFERENCES users(id)
-        );
-        """
-    )
-
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            reviewed_at TEXT,
+            family_id INTEGER NOT NULL
+        )""",
+    ]
+    db = DB()
+    for stmt in statements:
+        db.execute(stmt)
     db.commit()
     db.close()
 
@@ -537,11 +575,10 @@ def setup():
         return jsonify({"error": "הסיסמה חייבת לכלול אותיות ומספרים, לפחות 6 תווים"}), 400
     if db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
         return jsonify({"error": "האימייל כבר בשימוש"}), 400
-    cur = db.execute(
+    pid = db.insert_returning_id(
         "INSERT INTO users (name, role, pin, emoji, email) VALUES (?,?,?,?,?)",
         (name, "parent", generate_password_hash(password), emoji, email),
     )
-    pid = cur.lastrowid
     code = secrets.token_hex(4)  # קוד משפחה ייחודי (8 תווים)
     db.execute(
         "UPDATE users SET family_id = ?, family_code = ? WHERE id = ?",
@@ -678,7 +715,14 @@ def list_children():
 
 # ---------- API: מטלות ----------
 
-
+@app.route("/api/chores", methods=["GET"])
+@login_required
+def get_chores():
+    user = current_user()
+    rows = get_db().execute(
+        "SELECT * FROM chores WHERE family_id = ? ORDER BY id", (user["family_id"],)
+    ).fetchall()
+    return jsonify([dict(r) for r in rows])
 
 
 
