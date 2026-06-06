@@ -198,9 +198,10 @@ async function renderLogin() {
       list.appendChild(note);
     }
   } else {
-    const note = document.createElement("p");
-    note.className = "legal-consent";
-    note.innerHTML = "👶 ילדים: היכנסו דרך <b>הקישור שההורה שלכם שלח</b> 🙂";
+    const note = document.createElement("div");
+    note.className = "kids-note";
+    note.innerHTML = `<span class="kids-emoji">👶</span>
+      <div><b>ילדים</b> — היכנסו דרך <b>הקישור</b> שההורה שלכם שלח לכם 🙂</div>`;
     list.appendChild(note);
   }
 }
