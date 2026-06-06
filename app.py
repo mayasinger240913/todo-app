@@ -219,6 +219,13 @@ def now_str():
     return datetime.now().strftime("%Y-%m-%d %H:%M")
 
 
+def password_ok(pw):
+    """סיסמה תקינה: לפחות 6 תווים, וכוללת גם אותיות וגם מספרים."""
+    return (len(pw) >= 6
+            and any(c.isalpha() for c in pw)
+            and any(c.isdigit() for c in pw))
+
+
 # ---------- זיהוי רמאות: "טביעת אצבע" לתמונה ----------
 # מחשבים dHash – חתימה של 64 ביט שמתארת את מבנה התמונה.
 # שתי תמונות כמעט-זהות יקבלו חתימה כמעט-זהה (מרחק קטן),
@@ -467,8 +474,8 @@ def change_pin():
     new = str(data.get("new_pin", "")).strip()
     if not user["pin"] or not check_password_hash(user["pin"], current):
         return jsonify({"error": "הסיסמה הנוכחית שגויה 🙈"}), 400
-    if len(new) < 6:
-        return jsonify({"error": "הסיסמה החדשה חייבת להיות לפחות 6 תווים"}), 400
+    if not password_ok(new):
+        return jsonify({"error": "הסיסמה החדשה חייבת לכלול אותיות ומספרים, לפחות 6 תווים"}), 400
     db = get_db()
     db.execute("UPDATE users SET pin = ? WHERE id = ?", (generate_password_hash(new), user["id"]))
     db.commit()
@@ -499,8 +506,8 @@ def setup():
         return jsonify({"error": "צריך לבחור שם"}), 400
     if "@" not in email or "." not in email.split("@")[-1]:
         return jsonify({"error": "כתובת אימייל לא תקינה"}), 400
-    if len(password) < 6:
-        return jsonify({"error": "הסיסמה חייבת להיות לפחות 6 תווים"}), 400
+    if not password_ok(password):
+        return jsonify({"error": "הסיסמה חייבת לכלול אותיות ומספרים, לפחות 6 תווים"}), 400
     if not question or not answer:
         return jsonify({"error": "צריך לבחור שאלת אבטחה ותשובה (לשחזור סיסמה)"}), 400
     if db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
@@ -553,8 +560,8 @@ def forgot_reset():
     if row is None or not row["security_answer"] or \
             not check_password_hash(row["security_answer"], answer):
         return jsonify({"error": "התשובה שגויה 🙈"}), 400
-    if len(new) < 6:
-        return jsonify({"error": "הסיסמה החדשה חייבת להיות לפחות 6 תווים"}), 400
+    if not password_ok(new):
+        return jsonify({"error": "הסיסמה החדשה חייבת לכלול אותיות ומספרים, לפחות 6 תווים"}), 400
     db.execute("UPDATE users SET pin = ? WHERE id = ?",
                (generate_password_hash(new), row["id"]))
     db.commit()
@@ -625,14 +632,8 @@ def list_children():
 
 # ---------- API: מטלות ----------
 
-@app.route("/api/chores", methods=["GET"])
-@login_required
-def get_chores():
-    user = current_user()
-    rows = get_db().execute(
-        "SELECT * FROM chores WHERE family_id = ? ORDER BY id", (user["family_id"],)
-    ).fetchall()
-    return jsonify([dict(r) for r in rows])
+
+
 
 
 @app.route("/api/chores", methods=["POST"])

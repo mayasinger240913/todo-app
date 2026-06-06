@@ -118,6 +118,11 @@ function familyCodeFromUrl() {
   return m ? decodeURIComponent(m[1]) : "";
 }
 
+// סיסמה תקינה: לפחות 6 תווים, וכוללת גם אותיות וגם מספרים
+function passwordOk(pw) {
+  return pw.length >= 6 && /\p{L}/u.test(pw) && /[0-9]/.test(pw);
+}
+
 // מסך הקמה ראשוני: ההורה בוחר שם + קוד + אימות
 function renderSetup() {
   app.innerHTML = "";
@@ -133,9 +138,9 @@ function renderSetup() {
     const answer = $("#su-a").value.trim();
     if (!name) { err.textContent = "צריך לבחור שם"; return; }
     if (!email.includes("@")) { err.textContent = "צריך אימייל תקין"; return; }
-    if (pass.length < 6) { err.textContent = "הסיסמה חייבת להיות לפחות 6 תווים"; return; }
+    if (!passwordOk(pass)) { err.textContent = "הסיסמה חייבת לכלול אותיות ומספרים, לפחות 6 תווים"; return; }
     if (pass !== pass2) { err.textContent = "הסיסמה והאימות לא תואמים 🙈"; return; }
-    if (!question || !answer) { err.textContent = "צריך שאלת אבטחה ותשובה"; return; }
+    if (!question || !answer) { err.textContent = "צריך שאלת אבטחה ותשובה (לשחזור סיסמה)"; return; }
     try {
       ME = await api("/api/setup", "POST",
         { name, emoji, email, password: pass, security_question: question, security_answer: answer });
@@ -237,7 +242,7 @@ function openParentLogin() {
   $(".pl-pass", back).onkeydown = (e) => { if (e.key === "Enter") submit(); };
 }
 
-// תהליך "שכחתי סיסמה" — שאלת אבטחה
+// תהליך "שכחתי סיסמה" — שאלת אבטחה → סיסמה חדשה
 function openForgot() {
   const back = document.createElement("div");
   back.className = "modal-back";
@@ -252,8 +257,8 @@ function openForgot() {
     </div>
     <div class="fg-step2 hidden">
       <p class="fg-q" style="font-weight:700"></p>
-      <input class="ask-input fg-ans" placeholder="התשובה">
-      <input class="ask-input fg-new" type="password" placeholder="סיסמה חדשה (לפחות 6 תווים)">
+      <input class="ask-input fg-ans" placeholder="התשובה לשאלת האבטחה">
+      <input class="ask-input fg-new" type="password" placeholder="סיסמה חדשה (אותיות ומספרים, לפחות 6)">
       <input class="ask-input fg-new2" type="password" placeholder="אימות סיסמה">
       <div class="pin-error fg-err2"></div>
       <button class="btn big" data-act="reset">איפוס הסיסמה</button>
@@ -281,7 +286,7 @@ function openForgot() {
     const nw2 = $(".fg-new2", back).value;
     const err = $(".fg-err2", back);
     if (!answer) { err.textContent = "צריך לענות על השאלה"; return; }
-    if (nw.length < 6) { err.textContent = "סיסמה חייבת לפחות 6 תווים"; return; }
+    if (!passwordOk(nw)) { err.textContent = "סיסמה חייבת אותיות ומספרים, לפחות 6 תווים"; return; }
     if (nw !== nw2) { err.textContent = "הסיסמאות לא תואמות 🙈"; return; }
     try {
       await api("/api/forgot/reset", "POST", { email, answer, new_password: nw });
@@ -351,7 +356,7 @@ function openChangePin() {
     <div class="pin-emoji">🔑</div>
     <h2>החלפת סיסמה</h2>
     <input class="ask-input cp-cur" type="password" placeholder="הסיסמה הנוכחית">
-    <input class="ask-input cp-new" type="password" placeholder="סיסמה חדשה (לפחות 6 תווים)">
+    <input class="ask-input cp-new" type="password" placeholder="סיסמה חדשה (אותיות ומספרים, לפחות 6)">
     <input class="ask-input cp-conf" type="password" placeholder="אימות הסיסמה החדשה">
     <div class="pin-error cp-err"></div>
     <button class="btn big" data-act="save">שמירה</button>
@@ -365,7 +370,7 @@ function openChangePin() {
     const nw = $(".cp-new", back).value;
     const conf = $(".cp-conf", back).value;
     if (!cur || !nw || !conf) { err.textContent = "צריך למלא את כל השדות"; return; }
-    if (nw.length < 6) { err.textContent = "הסיסמה החדשה חייבת להיות לפחות 6 תווים"; return; }
+    if (!passwordOk(nw)) { err.textContent = "הסיסמה החדשה חייבת לכלול אותיות ומספרים, לפחות 6 תווים"; return; }
     if (nw !== conf) { err.textContent = "הסיסמה והאימות לא תואמים 🙈"; return; }
     try {
       await api("/api/change-pin", "POST", { current_pin: cur, new_pin: nw });
