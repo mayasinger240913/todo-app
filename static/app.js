@@ -496,7 +496,6 @@ function openParentLogin() {
     <div class="pin-error pl-err"></div>
     <button class="btn big" data-act="go">כניסה</button>
     <a class="forgot-link" data-act="forgot">שכחתי סיסמה</a>
-    ${saved ? `<a class="forgot-link" data-act="other">כניסה עם אימייל אחר</a>` : ""}
   </div>`;
   document.body.appendChild(back);
   const err = $(".pl-err", back);
@@ -513,12 +512,6 @@ function openParentLogin() {
   $('[data-act="close"]', back).onclick = () => back.remove();
   $('[data-act="go"]', back).onclick = submit;
   $('[data-act="forgot"]', back).onclick = () => { back.remove(); openForgot(); };
-  const other = $('[data-act="other"]', back);
-  if (other) other.onclick = () => {
-    localStorage.removeItem("parentEmail");
-    back.remove();
-    openParentLogin();
-  };
   $(".pl-pass", back).onkeydown = (e) => { if (e.key === "Enter") submit(); };
   setTimeout(() => { (saved ? $(".pl-pass", back) : $(".pl-email", back)).focus(); }, 50);
 }
