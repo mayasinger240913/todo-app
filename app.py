@@ -15,6 +15,7 @@
 import os
 import sqlite3
 import secrets
+import time
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, date, timedelta
@@ -82,7 +83,19 @@ class DB:
 
     def __init__(self):
         if USE_PG:
-            self.conn = psycopg2.connect(DATABASE_URL)
+            # ניסיונות חוזרים — מסד Neon החינמי "נרדם" וייתכן שהחיבור הראשון
+            # אחרי שינה לוקח כמה שניות / נכשל. ננסה כמה פעמים לפני שנוותר.
+            last_err = None
+            for attempt in range(6):
+                try:
+                    self.conn = psycopg2.connect(
+                        DATABASE_URL, connect_timeout=10, keepalives=1
+                    )
+                    return
+                except Exception as e:
+                    last_err = e
+                    time.sleep(2)
+            raise last_err
         else:
             self.conn = sqlite3.connect(DB_PATH)
             self.conn.row_factory = sqlite3.Row
@@ -446,6 +459,16 @@ def compute_streak(db, child_id):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/api/dbcheck")
+def dbcheck():
+    # נקודת אבחון זמנית — מחזירה את שגיאת מסד הנתונים אם יש
+    try:
+        row = get_db().execute("SELECT COUNT(*) AS c FROM users").fetchone()
+        return jsonify({"ok": True, "users": row["c"], "backend": "postgres" if USE_PG else "sqlite"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": repr(e)})
 
 
 @app.route("/sw.js")
