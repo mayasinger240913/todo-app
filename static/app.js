@@ -261,6 +261,8 @@ function chatToggle(open) {
   panel.classList.toggle("hidden", !show);
   panel.setAttribute("aria-hidden", show ? "false" : "true");
   fab.classList.toggle("hidden", show);
+  const label = $("#chat-fab-label");
+  if (label) label.classList.toggle("hidden", show);
   if (show) {
     if (!$("#chat-body").childElementCount) {
       chatAddBubble("assistant",
@@ -290,6 +292,8 @@ function chatSend(text) {
 
 function initChat() {
   $("#chat-fab").addEventListener("click", () => chatToggle(true));
+  const lbl = $("#chat-fab-label");
+  if (lbl) lbl.addEventListener("click", () => chatToggle(true));
   $("#chat-close").addEventListener("click", () => chatToggle(false));
   $("#chat-form").addEventListener("submit", (e) => {
     e.preventDefault();

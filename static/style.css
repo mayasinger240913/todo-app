@@ -237,14 +237,44 @@ h2{font-size:21px;margin:.2em 0 .6em}
 
 /* ===== עוזר חכם (צ'אט AI) ===== */
 #chat-fab{
-  position:fixed;bottom:18px;left:18px;z-index:300;
-  width:60px;height:60px;border:none;border-radius:50%;cursor:pointer;
-  font-size:28px;color:#fff;
-  background:linear-gradient(180deg,var(--primary),var(--primary-dark));
-  box-shadow:0 6px 0 var(--primary-dark), var(--shadow);
+  position:fixed;bottom:20px;left:20px;z-index:300;
+  width:72px;height:72px;border:none;border-radius:50%;cursor:pointer;
+  font-size:34px;color:#fff;
+  background:linear-gradient(180deg,var(--pink),var(--primary));
+  box-shadow:0 6px 0 var(--primary-dark), 0 12px 30px rgba(255,94,163,.5);
+  animation:fab-attention 2.2s ease-in-out infinite;
 }
-#chat-fab:active{transform:translateY(4px);box-shadow:0 2px 0 var(--primary-dark)}
+/* טבעת "פעימה" שמושכת את העין */
+#chat-fab::after{
+  content:"";position:absolute;inset:0;border-radius:50%;
+  border:3px solid var(--pink);
+  animation:fab-ring 2.2s ease-out infinite;
+}
+@keyframes fab-attention{
+  0%,100%{transform:translateY(0) scale(1)}
+  50%{transform:translateY(-4px) scale(1.06)}
+}
+@keyframes fab-ring{
+  0%{opacity:.7;transform:scale(1)}
+  100%{opacity:0;transform:scale(1.9)}
+}
+#chat-fab:active{transform:translateY(4px) scale(1);animation:none;box-shadow:0 2px 0 var(--primary-dark)}
 #chat-fab.hidden{display:none}
+
+/* תווית "צריך עזרה?" ליד הכפתור */
+#chat-fab-label{
+  position:fixed;bottom:38px;left:100px;z-index:300;
+  background:#fff;color:var(--primary-dark);font-weight:700;font-size:15px;
+  padding:9px 14px;border-radius:16px;white-space:nowrap;
+  box-shadow:var(--shadow);animation:fab-attention 2.2s ease-in-out infinite;
+}
+/* "זנב" קטן שמצביע לכיוון הכפתור */
+#chat-fab-label::before{
+  content:"";position:absolute;right:-7px;bottom:14px;
+  border:7px solid transparent;border-right-color:#fff;
+}
+#chat-fab-label.hidden{display:none}
+@media(max-width:480px){ #chat-fab-label{display:none} }
 
 #chat-panel{
   position:fixed;bottom:18px;left:18px;z-index:301;
