@@ -1265,6 +1265,80 @@ async function loadKids(root) {
 }
 
 // --- ניהול מטלות ---
+// ספריית מטלות מוכנה — לחיצה מוסיפה מטלה בלי להקליד
+const CHORE_LIBRARY = [
+  { cat: "🛏️ חדר", items: [
+    { emoji: "🛏️", title: "לסדר את המיטה", points: 5 },
+    { emoji: "🧸", title: "לסדר את החדר", points: 10 },
+    { emoji: "👕", title: "לקפל ולסדר בגדים", points: 10 },
+    { emoji: "🎒", title: "להכין תיק לבית ספר", points: 5 },
+  ]},
+  { cat: "🍽️ מטבח", items: [
+    { emoji: "🍽️", title: "להכניס כלים למדיח", points: 10 },
+    { emoji: "🍴", title: "להוציא כלים מהמדיח", points: 10 },
+    { emoji: "🧽", title: "לנקות את השיש והשולחן", points: 8 },
+    { emoji: "🗑️", title: "להוציא את הזבל", points: 5 },
+  ]},
+  { cat: "🛋️ סלון ובית", items: [
+    { emoji: "🛋️", title: "לסדר את הסלון", points: 10 },
+    { emoji: "🧹", title: "לטאטא את הבית", points: 8 },
+    { emoji: "🧼", title: "לשטוף רצפות", points: 15 },
+    { emoji: "🪟", title: "לנקות חלון או מראה", points: 8 },
+  ]},
+  { cat: "⭐ כללי", items: [
+    { emoji: "📚", title: "לעשות שיעורי בית", points: 15 },
+    { emoji: "🤝", title: "לעזור לאח/אחות בשיעורים", points: 15 },
+    { emoji: "🍳", title: "לעזור בהכנת ארוחה", points: 12 },
+    { emoji: "🐕", title: "להאכיל / להוציא את החיה", points: 8 },
+    { emoji: "🌱", title: "להשקות צמחים", points: 5 },
+    { emoji: "🦷", title: "לצחצח שיניים", points: 3 },
+  ]},
+];
+
+function openChoreLibrary(root) {
+  const back = document.createElement("div");
+  back.className = "modal-back";
+  let html = `<div class="modal lib-modal">
+    <button class="close" data-act="lib-close">✕</button>
+    <h2>📋 ספריית מטלות</h2>
+    <p class="lib-hint">לחצו על מטלה כדי להוסיף אותה — אפשר לערוך נקודות אחר כך.</p>
+    <div class="lib-list">`;
+  CHORE_LIBRARY.forEach((group) => {
+    html += `<div class="lib-cat">${group.cat}</div>`;
+    group.items.forEach((it) => {
+      const t = it.title.replace(/"/g, "&quot;");
+      html += `<button class="lib-item" data-title="${t}" data-emoji="${it.emoji}" data-points="${it.points}">
+        <span class="emoji">${it.emoji}</span>
+        <span class="lib-t">${it.title}</span>
+        <span class="pts">+${it.points}</span>
+        <span class="lib-add">הוספה ➕</span></button>`;
+    });
+  });
+  html += `</div></div>`;
+  back.innerHTML = html;
+  document.body.appendChild(back);
+
+  const close = () => { back.remove(); loadManageChores(root); };
+  back.querySelector('[data-act="lib-close"]').onclick = close;
+  back.onclick = (e) => { if (e.target === back) close(); };
+
+  $$(".lib-item", back).forEach((btn) => {
+    btn.onclick = async () => {
+      if (btn.classList.contains("added")) return;
+      try {
+        await api("/api/chores", "POST", {
+          title: btn.dataset.title,
+          emoji: btn.dataset.emoji,
+          points: btn.dataset.points,
+        });
+        btn.classList.add("added");
+        btn.querySelector(".lib-add").textContent = "נוסף ✓";
+        playSound("success");
+      } catch (e) { toast(e.message); }
+    };
+  });
+}
+
 async function loadManageChores(root) {
   const box = $('[data-content="manage-chores"]', root);
   const chores = await api("/api/chores");
@@ -1276,6 +1350,7 @@ async function loadManageChores(root) {
       <input class="w-pts" id="ch-pts" placeholder="נק'" inputmode="numeric">
     </div>
     <button class="btn big" id="add-chore">הוספה ➕</button>
+    <button class="btn ghost" id="open-lib" style="width:100%;margin-top:8px">📋 בחירה מספריית מטלות מוכנה</button>
   </div>`;
   html += "<h2>המטלות הקיימות</h2>";
   if (chores.length === 0) html += `<div class="empty">אין מטלות</div>`;
@@ -1314,6 +1389,7 @@ async function loadManageChores(root) {
       loadManageChores(root);
     } catch (e) { toast(e.message); }
   };
+  $("#open-lib", box).onclick = () => openChoreLibrary(root);
   $$("[data-del]", box).forEach((btn) => {
     btn.onclick = async () => {
       await api(`/api/chores/${btn.dataset.del}`, "DELETE");
