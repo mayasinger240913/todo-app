@@ -1,3 +1,4 @@
+// persist-check-v1 — בדיקת התמדת נתונים אחרי פריסה
 // ===== כלי עזר קטנים =====
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
