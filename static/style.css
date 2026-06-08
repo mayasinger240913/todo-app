@@ -270,6 +270,11 @@ h2{font-size:21px;margin:.2em 0 .6em}
   background:linear-gradient(180deg,var(--primary),var(--primary-dark));
   border-bottom-left-radius:6px}
 .chat-bubble.typing{opacity:.7;font-style:italic}
+.chat-chips{display:flex;flex-wrap:wrap;gap:8px;align-self:flex-start;max-width:95%}
+.chat-chip{background:#fff;border:2px solid #e3dcff;color:var(--primary-dark);
+  border-radius:16px;padding:8px 12px;font-size:14px;font-family:inherit;font-weight:600;
+  cursor:pointer;box-shadow:var(--shadow-sm)}
+.chat-chip:active{transform:translateY(2px)}
 .chat-input-row{display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid #ece7ff}
 #chat-text{flex:1;border:2px solid #e3dcff;border-radius:16px;padding:11px 14px;
   font-size:15px;font-family:inherit;outline:none}
