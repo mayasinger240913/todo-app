@@ -235,6 +235,18 @@ h2{font-size:21px;margin:.2em 0 .6em}
 /* ===== קונפטי ===== */
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:200}
 
+/* כפתור "חזרה" במסכי כניסה/הרשמה */
+.screen-back{
+  align-self:flex-start;background:rgba(255,255,255,.22);border:none;color:#fff;
+  font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;
+  padding:8px 14px;border-radius:14px;margin-bottom:6px;backdrop-filter:blur(2px)}
+.screen-back:active{transform:translateY(2px)}
+
+/* כשלא מחוברים — מסתירים את כפתור הצ'אט כדי שלא יסתיר את הקישורים למטה */
+body.no-chat #chat-fab,
+body.no-chat #chat-fab-label,
+body.no-chat #chat-panel{display:none !important}
+
 /* ===== ספריית מטלות מוכנה ===== */
 .lib-modal{max-width:440px;width:92%;max-height:86vh;display:flex;flex-direction:column;text-align:right}
 .lib-hint{color:var(--muted);font-size:14px;margin:4px 0 12px}

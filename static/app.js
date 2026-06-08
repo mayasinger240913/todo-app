@@ -355,7 +355,9 @@ function openEditModal(heading, fields, onSave) {
 // מסך הקמה ראשוני: ההורה בוחר שם + קוד + אימות
 function renderSetup() {
   app.innerHTML = "";
+  document.body.classList.add("no-chat");   // בלי כפתור צ'אט במסך הרשמה
   app.appendChild(tpl("tpl-setup"));
+  $("#su-back").onclick = renderLogin;       // חץ חזרה למסך הכניסה
   const err = $("#su-err");
   $("#su-go").onclick = async () => {
     const name = $("#su-name").value.trim();
@@ -381,6 +383,7 @@ function renderSetup() {
 // ===================================================
 async function renderLogin() {
   app.innerHTML = "";
+  document.body.classList.add("no-chat");   // בלי כפתור צ'אט במסך הכניסה
   app.appendChild(tpl("tpl-login"));
   const list = $("#user-list");
   list.innerHTML = "";
@@ -569,6 +572,7 @@ function openPin(u) {
 // ===================================================
 function renderHome() {
   app.innerHTML = "";
+  document.body.classList.remove("no-chat");  // אחרי כניסה — מציגים את הצ'אט
   const header = tpl("tpl-header");
   $(".who", header).innerHTML = `<span class="ava">${ME.emoji}</span> ${ME.name}`;
   $('[data-act="logout"]', header).onclick = async () => {

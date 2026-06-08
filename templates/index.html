@@ -19,7 +19,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Varela+Round&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="no-chat">
 
   <!-- מסך טעינה ראשוני -->
   <div id="app"></div>
@@ -45,6 +45,7 @@
   <!-- מסך הקמה ראשוני (כניסה ראשונה - יצירת חשבון הורה) -->
   <template id="tpl-setup">
     <div class="screen center">
+      <button class="screen-back" id="su-back">→ חזרה למסך הכניסה</button>
       <div class="logo">⭐</div>
       <h1>ברוכים הבאים לטודו!</h1>
       <p class="subtitle">בהקמה ראשונה — צרו את חשבון ההורה 👑</p>
