@@ -218,7 +218,7 @@ function chatAnswer(text) {
   }
   if (best) return best.a;
   return "לא בטוח/ה שהבנתי 🤔 אפשר לנסות לנסח אחרת, או לבחור אחת מהשאלות הנפוצות למעלה. " +
-         "ואם צריך עזרה אישית — כותבים לנו ל-maya.singer13@gmail.com 💜";
+         "ואם צריך עזרה אישית — כותבים לנו ל-todo.family.app1@gmail.com 💜";
 }
 
 const CHAT_CHIPS = [
