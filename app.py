@@ -461,16 +461,6 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/api/dbcheck")
-def dbcheck():
-    # נקודת אבחון זמנית — מחזירה את שגיאת מסד הנתונים אם יש
-    try:
-        row = get_db().execute("SELECT COUNT(*) AS c FROM users").fetchone()
-        return jsonify({"ok": True, "users": row["c"], "backend": "postgres" if USE_PG else "sqlite"})
-    except Exception as e:
-        return jsonify({"ok": False, "error": repr(e)})
-
-
 @app.route("/sw.js")
 def service_worker():
     # מגישים את ה-service worker מהשורש כדי שה-scope שלו יהיה כל האתר
