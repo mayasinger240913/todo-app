@@ -353,11 +353,43 @@ function openEditModal(heading, fields, onSave) {
 }
 
 // מסך הקמה ראשוני: ההורה בוחר שם + קוד + אימות
+// ===== כניסה דרך Google =====
+// מקבל את האסימון מ-Google ושולח לשרת לאימות + כניסה/הרשמה
+function onGoogleCredential(resp) {
+  api("/api/auth/google", "POST", { credential: resp.credential })
+    .then((user) => { ME = user; celebrate(); renderHome(); })
+    .catch((e) => toast(e.message || "כניסת Google נכשלה"));
+}
+
+// מציב את כפתור Google בתוך container (אם הוגדר GOOGLE_CLIENT_ID בשרת)
+function mountGoogle(container, tries = 0) {
+  if (!window.GOOGLE_CLIENT_ID || !container) return;   // לא הוגדר → לא מציגים כלום
+  // הספרייה של Google נטענת באופן אסינכרוני — מחכים שתהיה מוכנה
+  if (!(window.google && google.accounts && google.accounts.id)) {
+    if (tries < 40) setTimeout(() => mountGoogle(container, tries + 1), 120);
+    return;
+  }
+  container.innerHTML = "";
+  google.accounts.id.initialize({
+    client_id: window.GOOGLE_CLIENT_ID,
+    callback: onGoogleCredential,
+  });
+  google.accounts.id.renderButton(container, {
+    theme: "filled_blue", size: "large", shape: "pill",
+    text: "continue_with", width: 280, locale: "he",
+  });
+  const sep = document.createElement("div");
+  sep.className = "g-sep";
+  sep.innerHTML = "<span>או</span>";
+  container.appendChild(sep);
+}
+
 function renderSetup() {
   app.innerHTML = "";
   document.body.classList.add("no-chat");   // בלי כפתור צ'אט במסך הרשמה
   app.appendChild(tpl("tpl-setup"));
   $("#su-back").onclick = renderLogin;       // חץ חזרה למסך הכניסה
+  mountGoogle($("#google-setup"));           // כניסה/הרשמה מהירה דרך Google
   const err = $("#su-err");
   $("#su-go").onclick = async () => {
     const name = $("#su-name").value.trim();
@@ -388,6 +420,11 @@ async function renderLogin() {
   const list = $("#user-list");
   list.innerHTML = "";
 
+  const code = familyCodeFromUrl();
+
+  // כניסה דרך Google (אם הוגדר) — רק במסך הראשי, לא בקישור הילד
+  if (!code) mountGoogle($("#google-login"));
+
   // כניסת הורה — אימייל + סיסמה
   const parentBtn = document.createElement("div");
   parentBtn.className = "user-pick";
@@ -398,17 +435,18 @@ async function renderLogin() {
   parentBtn.onclick = openParentLogin;
   list.appendChild(parentBtn);
 
-  // יצירת משפחה חדשה (הרשמה)
-  const signupBtn = document.createElement("div");
-  signupBtn.className = "user-pick";
-  signupBtn.innerHTML = `
-    <span class="ava">✨</span>
-    <div><div class="nm">יצירת משפחה חדשה</div><div class="rl">הרשמה כהורה</div></div>`;
-  signupBtn.onclick = renderSetup;
-  list.appendChild(signupBtn);
+  // יצירת משפחה חדשה (הרשמה) — לא מוצג בקישור של הילד
+  if (!code) {
+    const signupBtn = document.createElement("div");
+    signupBtn.className = "user-pick";
+    signupBtn.innerHTML = `
+      <span class="ava">✨</span>
+      <div><div class="nm">יצירת משפחה חדשה</div><div class="rl">הרשמה כהורה</div></div>`;
+    signupBtn.onclick = renderSetup;
+    list.appendChild(signupBtn);
+  }
 
   // פרופילי ילדים — רק אם נכנסים דרך קישור המשפחה (/f/CODE)
-  const code = familyCodeFromUrl();
   if (code) {
     const kids = await api("/api/users?family_code=" + encodeURIComponent(code));
     kids.forEach((u) => {

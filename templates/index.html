@@ -18,6 +18,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Varela+Round&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
+
+  <!-- כניסה דרך Google (מוצג רק אם הוגדר GOOGLE_CLIENT_ID בשרת) -->
+  <script>window.GOOGLE_CLIENT_ID = "{{ google_client_id|default('', true) }}";</script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="no-chat">
 
@@ -34,6 +38,7 @@
       <p class="subtitle">עושים מטלות, אוספים נקודות, מקבלים פרסים! 💰</p>
       <div class="card">
         <h2>מי נכנס?</h2>
+        <div id="google-login" class="gbtn-wrap"></div>
         <div id="user-list" class="user-list"></div>
       </div>
       <p class="legal-consent">בכניסה לאפליקציה את/ה מאשר/ת את
@@ -51,6 +56,7 @@
       <p class="subtitle">בהקמה ראשונה — צרו את חשבון ההורה 👑</p>
       <div class="card">
         <h2>חשבון הורה</h2>
+        <div id="google-setup" class="gbtn-wrap"></div>
         <div class="form-row">
           <input class="w-emoji" id="su-emoji" value="👑" maxlength="2">
           <input id="su-name" placeholder="השם שלך (הורה)">

@@ -74,6 +74,10 @@ def send_email(to, subject, body):
 # אם לא הוגדר — הצ'אט פשוט יחזיר הודעה ידידותית שהוא לא זמין כרגע.
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
+# מזהה לקוח של Google לכניסה דרך Google (Sign in with Google).
+# מגיע ממשתנה הסביבה GOOGLE_CLIENT_ID. אם ריק — כפתור Google פשוט לא יוצג.
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+
 # מודל זול ומהיר — מתאים מאוד לעוזר שעונה על שאלות קצרות.
 CHAT_MODEL = "claude-haiku-4-5"
 
@@ -503,7 +507,7 @@ def compute_streak(db, child_id):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", google_client_id=GOOGLE_CLIENT_ID)
 
 
 @app.route("/sw.js")
@@ -531,7 +535,7 @@ def uploaded_file(filename):
 @app.route("/f/<code>")
 def family_link(code):
     # קישור ייחודי למשפחה — מגיש את אותה אפליקציה; הצד-לקוח קורא את הקוד מה-URL
-    return render_template("index.html")
+    return render_template("index.html", google_client_id=GOOGLE_CLIENT_ID)
 
 
 # ---------- API: התחברות ----------
@@ -579,6 +583,61 @@ def login():
     ).fetchone()
     if row is None:
         return jsonify({"error": "פרופיל לא נמצא"}), 404
+    session["user_id"] = row["id"]
+    return jsonify(_user_public(row))
+
+
+@app.route("/api/auth/google", methods=["POST"])
+def auth_google():
+    """כניסה/הרשמה דרך Google. מקבל credential (JWT) מהדפדפן, מאמת אותו מול
+    Google, ומשתמש באימייל המאומת. אם אין חשבון — יוצר משפחה חדשה."""
+    if not GOOGLE_CLIENT_ID:
+        return jsonify({"error": "כניסת Google לא הוגדרה עדיין בשרת"}), 400
+    data = request.get_json(force=True)
+    token = (data.get("credential") or "").strip()
+    if not token:
+        return jsonify({"error": "חסר אסימון Google"}), 400
+
+    # אימות האסימון מול Google (כך אי אפשר לזייף אימייל)
+    try:
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as google_requests
+        info = google_id_token.verify_oauth2_token(
+            token, google_requests.Request(), GOOGLE_CLIENT_ID
+        )
+    except Exception as e:
+        print(">> אימות Google נכשל:", e)
+        return jsonify({"error": "אימות Google נכשל. נסו שוב 🙏"}), 401
+
+    if not info.get("email_verified"):
+        return jsonify({"error": "האימייל ב-Google לא מאומת"}), 400
+    email = (info.get("email") or "").strip().lower()
+    name = (info.get("given_name") or info.get("name") or "הורה").strip()
+    if not email:
+        return jsonify({"error": "לא התקבל אימייל מ-Google"}), 400
+
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM users WHERE email = ? AND role = 'parent'", (email,)
+    ).fetchone()
+
+    if row is None:
+        # אין חשבון עם האימייל הזה — יוצרים משפחה חדשה (כניסת Google = הרשמה).
+        # אין סיסמה רגילה; שומרים hash אקראי שאי אפשר להתחבר איתו בלי Google.
+        random_pin = generate_password_hash(secrets.token_hex(16))
+        pid = db.insert_returning_id(
+            "INSERT INTO users (name, role, pin, emoji, email) VALUES (?,?,?,?,?)",
+            (name, "parent", random_pin, "👑", email),
+        )
+        code = secrets.token_hex(4)
+        db.execute(
+            "UPDATE users SET family_id = ?, family_code = ? WHERE id = ?",
+            (pid, code, pid),
+        )
+        seed_family(db, pid)
+        db.commit()
+        row = db.execute("SELECT * FROM users WHERE id = ?", (pid,)).fetchone()
+
     session["user_id"] = row["id"]
     return jsonify(_user_public(row))
 
