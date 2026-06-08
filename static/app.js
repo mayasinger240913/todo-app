@@ -123,6 +123,33 @@ function passwordOk(pw) {
   return pw.length >= 6 && /\p{L}/u.test(pw) && /[0-9]/.test(pw);
 }
 
+// חלון עריכה גנרי. fields: [{placeholder, value, type}]. onSave מקבל מערך ערכים.
+function openEditModal(heading, fields, onSave) {
+  const back = document.createElement("div");
+  back.className = "modal-back";
+  const inputsHtml = fields.map((f, i) => {
+    const v = (f.value == null ? "" : String(f.value)).replace(/"/g, "&quot;");
+    return `<input class="ask-input ef-${i}" type="${f.type || "text"}" placeholder="${f.placeholder}" value="${v}">`;
+  }).join("");
+  back.innerHTML = `<div class="modal">
+    <button class="close" data-act="close">✕</button>
+    <div class="pin-emoji">✏️</div>
+    <h2>${heading}</h2>
+    ${inputsHtml}
+    <div class="pin-error ef-err"></div>
+    <button class="btn big" data-act="save">שמירה</button>
+  </div>`;
+  document.body.appendChild(back);
+  $('[data-act="close"]', back).onclick = () => back.remove();
+  $('[data-act="save"]', back).onclick = async () => {
+    const vals = fields.map((f, i) => $(".ef-" + i, back).value.trim());
+    try {
+      await onSave(vals);
+      back.remove();
+    } catch (e) { $(".ef-err", back).textContent = e.message; }
+  };
+}
+
 // מסך הקמה ראשוני: ההורה בוחר שם + קוד + אימות
 function renderSetup() {
   app.innerHTML = "";
@@ -961,7 +988,7 @@ async function loadKids(root) {
   html += "<h2>הילדים שלי</h2>";
   if (kids.length === 0) html += `<div class="empty">עדיין אין ילדים</div>`;
   kids.forEach((k) => {
-    html += `<div class="item review-card" data-kid="${k.id}" data-name="${k.name}">
+    html += `<div class="item review-card" data-kid="${k.id}" data-name="${k.name}" data-emoji="${k.emoji}">
       <div class="info" style="display:flex;align-items:center;gap:10px">
         <span class="emoji">${k.emoji}</span>
         <div><div class="t">${k.name}</div>
@@ -971,6 +998,7 @@ async function loadKids(root) {
       <div class="review-actions">
         <button class="btn small green" data-bonus="10">בונוס +10</button>
         <button class="btn small ghost" data-bonus="-10">הורדה -10</button>
+        <button class="btn small" data-edit-kid>✏️ שם</button>
         <button class="btn small red" data-del-kid>מחיקה</button>
       </div>
     </div>`;
@@ -1010,6 +1038,18 @@ async function loadKids(root) {
         } catch (e) { toast(e.message); }
       };
     });
+    const edit = $("[data-edit-kid]", card);
+    if (edit) edit.onclick = () => {
+      openEditModal("עריכת ילד/ה", [
+        { placeholder: "אימוג'י", value: card.dataset.emoji },
+        { placeholder: "שם", value: name },
+      ], async ([emoji, newName]) => {
+        if (!newName) throw new Error("צריך שם");
+        await api(`/api/children/${id}/edit`, "POST", { name: newName, emoji: emoji || "🙂" });
+        toast("עודכן ✅");
+        loadKids(root);
+      });
+    };
     const del = $("[data-del-kid]", card);
     if (del) del.onclick = async () => {
       if (!confirm(`למחוק את ${name}? כל הנתונים שלו יימחקו.`)) return;
@@ -1038,13 +1078,28 @@ async function loadManageChores(root) {
   html += "<h2>המטלות הקיימות</h2>";
   if (chores.length === 0) html += `<div class="empty">אין מטלות</div>`;
   chores.forEach((c) => {
+    const t = c.title.replace(/"/g, "&quot;");
     html += `<div class="item">
       <span class="emoji">${c.emoji}</span>
       <div class="info"><div class="t">${c.title}</div></div>
       <span class="pts">+${c.points}</span>
+      <button class="btn small" data-edit="${c.id}" data-title="${t}" data-points="${c.points}" data-emoji="${c.emoji}">✏️</button>
       <button class="btn small red" data-del="${c.id}">מחק</button></div>`;
   });
   box.innerHTML = html;
+
+  $$("[data-edit]", box).forEach((btn) => {
+    btn.onclick = () => openEditModal("עריכת מטלה", [
+      { placeholder: "אימוג'י", value: btn.dataset.emoji },
+      { placeholder: "שם המטלה", value: btn.dataset.title },
+      { placeholder: "נקודות", value: btn.dataset.points, type: "number" },
+    ], async ([emoji, title, points]) => {
+      if (!title || !points) throw new Error("צריך שם ונקודות");
+      await api(`/api/chores/${btn.dataset.edit}/edit`, "POST", { title, points, emoji: emoji || "🧹" });
+      toast("עודכן ✅");
+      loadManageChores(root);
+    });
+  });
 
   $("#add-chore", box).onclick = async () => {
     const title = $("#ch-title", box).value.trim();
@@ -1084,13 +1139,28 @@ async function loadManageRewards(root) {
   html += "<h2>הפרסים הקיימים</h2>";
   if (rewards.length === 0) html += `<div class="empty">אין פרסים</div>`;
   rewards.forEach((r) => {
+    const t = r.title.replace(/"/g, "&quot;");
     html += `<div class="item">
       <span class="emoji">${r.emoji}</span>
       <div class="info"><div class="t">${r.title}</div></div>
       <span class="cost">${r.cost_points}</span>
+      <button class="btn small" data-edit="${r.id}" data-title="${t}" data-cost="${r.cost_points}" data-emoji="${r.emoji}">✏️</button>
       <button class="btn small red" data-del="${r.id}">מחק</button></div>`;
   });
   box.innerHTML = html;
+
+  $$("[data-edit]", box).forEach((btn) => {
+    btn.onclick = () => openEditModal("עריכת פרס", [
+      { placeholder: "אימוג'י", value: btn.dataset.emoji },
+      { placeholder: "שם הפרס", value: btn.dataset.title },
+      { placeholder: "מחיר בנקודות", value: btn.dataset.cost, type: "number" },
+    ], async ([emoji, title, cost_points]) => {
+      if (!title || !cost_points) throw new Error("צריך שם ומחיר");
+      await api(`/api/rewards/${btn.dataset.edit}/edit`, "POST", { title, cost_points, emoji: emoji || "🎁" });
+      toast("עודכן ✅");
+      loadManageRewards(root);
+    });
+  });
 
   $("#add-reward", box).onclick = async () => {
     const title = $("#rw-title", box).value.trim();

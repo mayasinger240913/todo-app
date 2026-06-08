@@ -772,6 +772,28 @@ def delete_chore(chore_id):
     return jsonify({"ok": True})
 
 
+@app.route("/api/chores/<int:chore_id>/edit", methods=["POST"])
+@parent_required
+def edit_chore(chore_id):
+    data = request.get_json(force=True)
+    title = (data.get("title") or "").strip()
+    emoji = (data.get("emoji") or "🧹").strip()
+    try:
+        points = int(data.get("points"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "מספר נקודות לא תקין"}), 400
+    if not title or points <= 0:
+        return jsonify({"error": "צריך שם מטלה ומספר נקודות חיובי"}), 400
+    user = current_user()
+    db = get_db()
+    db.execute(
+        "UPDATE chores SET title=?, points=?, emoji=? WHERE id=? AND family_id=?",
+        (title, points, emoji, chore_id, user["family_id"]),
+    )
+    db.commit()
+    return jsonify({"ok": True})
+
+
 # ---------- API: פרסים ----------
 
 @app.route("/api/rewards", methods=["GET"])
@@ -814,6 +836,28 @@ def delete_reward(reward_id):
     db = get_db()
     db.execute("DELETE FROM rewards WHERE id = ? AND family_id = ?",
                (reward_id, user["family_id"]))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/rewards/<int:reward_id>/edit", methods=["POST"])
+@parent_required
+def edit_reward(reward_id):
+    data = request.get_json(force=True)
+    title = (data.get("title") or "").strip()
+    emoji = (data.get("emoji") or "🎁").strip()
+    try:
+        cost = int(data.get("cost_points"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "מספר נקודות לא תקין"}), 400
+    if not title or cost <= 0:
+        return jsonify({"error": "צריך שם פרס ומחיר נקודות חיובי"}), 400
+    user = current_user()
+    db = get_db()
+    db.execute(
+        "UPDATE rewards SET title=?, cost_points=?, emoji=? WHERE id=? AND family_id=?",
+        (title, cost, emoji, reward_id, user["family_id"]),
+    )
     db.commit()
     return jsonify({"ok": True})
 
@@ -1269,6 +1313,27 @@ def kid_bonus(kid_id):
         )
     else:
         db.execute("UPDATE users SET points=? WHERE id=?", (new_points, kid_id))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/children/<int:kid_id>/edit", methods=["POST"])
+@parent_required
+def edit_child(kid_id):
+    data = request.get_json(force=True)
+    name = (data.get("name") or "").strip()
+    emoji = (data.get("emoji") or "🙂").strip()
+    if not name:
+        return jsonify({"error": "צריך שם"}), 400
+    user = current_user()
+    db = get_db()
+    kid = db.execute(
+        "SELECT id FROM users WHERE id=? AND role='child' AND family_id=?",
+        (kid_id, user["family_id"]),
+    ).fetchone()
+    if kid is None:
+        return jsonify({"error": "הילד לא נמצא"}), 404
+    db.execute("UPDATE users SET name=?, emoji=? WHERE id=?", (name, emoji, kid_id))
     db.commit()
     return jsonify({"ok": True})
 
