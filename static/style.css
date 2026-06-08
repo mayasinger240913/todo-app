@@ -42,7 +42,8 @@ h1,h2,h3{font-family:"Fredoka","Varela Round",sans-serif;font-weight:700}
 
 /* ===== מסכים ===== */
 .screen{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:14px 14px 70px}
-.center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;position:relative;z-index:1}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;position:relative;z-index:1;
+  box-sizing:border-box;padding-bottom:110px}
 .hidden{display:none !important}
 
 .logo{font-size:78px;filter:drop-shadow(0 8px 10px rgba(0,0,0,.2));animation:bounce 1.6s ease-in-out infinite}

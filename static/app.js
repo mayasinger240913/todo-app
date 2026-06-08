@@ -386,7 +386,7 @@ function mountGoogle(container, tries = 0) {
 
 function renderSetup() {
   app.innerHTML = "";
-  document.body.classList.add("no-chat");   // בלי כפתור צ'אט במסך הרשמה
+  document.body.classList.remove("no-chat");  // הצ'אט מוצג גם במסך ההרשמה
   app.appendChild(tpl("tpl-setup"));
   $("#su-back").onclick = renderLogin;       // חץ חזרה למסך הכניסה
   mountGoogle($("#google-setup"));           // כניסה/הרשמה מהירה דרך Google
@@ -415,7 +415,7 @@ function renderSetup() {
 // ===================================================
 async function renderLogin() {
   app.innerHTML = "";
-  document.body.classList.add("no-chat");   // בלי כפתור צ'אט במסך הכניסה
+  document.body.classList.remove("no-chat");  // הצ'אט מוצג גם במסך הכניסה
   app.appendChild(tpl("tpl-login"));
   const list = $("#user-list");
   list.innerHTML = "";
