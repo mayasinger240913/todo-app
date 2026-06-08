@@ -100,6 +100,73 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+// ===== עוזר חכם (צ'אט AI) =====
+const CHAT_HISTORY = []; // [{role:"user"|"assistant", content}]
+
+function chatAddBubble(role, text) {
+  const body = $("#chat-body");
+  const b = document.createElement("div");
+  b.className = "chat-bubble " + (role === "user" ? "me" : "bot");
+  b.textContent = text;
+  body.appendChild(b);
+  body.scrollTop = body.scrollHeight;
+  return b;
+}
+
+function chatToggle(open) {
+  const panel = $("#chat-panel");
+  const fab = $("#chat-fab");
+  const show = open == null ? panel.classList.contains("hidden") : open;
+  panel.classList.toggle("hidden", !show);
+  panel.setAttribute("aria-hidden", show ? "false" : "true");
+  fab.classList.toggle("hidden", show);
+  if (show) {
+    // הודעת פתיחה — רק בפעם הראשונה
+    if (!$("#chat-body").childElementCount) {
+      chatAddBubble("assistant",
+        "היי! 👋 אני העוזר של טודו. אפשר לשאול אותי כל דבר על האפליקציה — " +
+        "איך מוסיפים מטלה, איך הילדים נכנסים, מה זה הפרסים, וכל השאר 😊");
+    }
+    setTimeout(() => $("#chat-text").focus(), 50);
+  }
+}
+
+async function chatSend(text) {
+  text = (text || "").trim();
+  if (!text) return;
+  const input = $("#chat-text"), sendBtn = $("#chat-send");
+  input.value = "";
+  chatAddBubble("user", text);
+  CHAT_HISTORY.push({ role: "user", content: text });
+
+  input.disabled = true; sendBtn.disabled = true;
+  const typing = chatAddBubble("assistant", "כותב…");
+  typing.classList.add("typing");
+  try {
+    const data = await api("/api/chat", "POST", { messages: CHAT_HISTORY });
+    typing.remove();
+    const reply = data.reply || "מצטער/ת, לא הצלחתי לענות.";
+    chatAddBubble("assistant", reply);
+    CHAT_HISTORY.push({ role: "assistant", content: reply });
+  } catch (e) {
+    typing.remove();
+    chatAddBubble("assistant", "אופס, משהו השתבש בחיבור. נסו שוב בעוד רגע 🙏");
+  } finally {
+    input.disabled = false; sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+function initChat() {
+  $("#chat-fab").addEventListener("click", () => chatToggle(true));
+  $("#chat-close").addEventListener("click", () => chatToggle(false));
+  $("#chat-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    chatSend($("#chat-text").value);
+  });
+}
+initChat();
+
 // ===== נקודת התחלה =====
 init();
 async function init() {

@@ -170,6 +170,20 @@
 
   <div id="toast" class="toast hidden"></div>
 
+  <!-- ===== עוזר חכם (צ'אט AI) ===== -->
+  <button id="chat-fab" aria-label="עוזר חכם" title="שאל את העוזר החכם">💬</button>
+  <div id="chat-panel" class="hidden" aria-hidden="true">
+    <div class="chat-header">
+      <span>💬 העוזר של טודו</span>
+      <button class="chat-close" id="chat-close" aria-label="סגירה">✕</button>
+    </div>
+    <div class="chat-body" id="chat-body"></div>
+    <form class="chat-input-row" id="chat-form">
+      <input id="chat-text" autocomplete="off" placeholder="שאל/י אותי כל דבר על האפליקציה…">
+      <button type="submit" class="chat-send" id="chat-send" aria-label="שליחה">⬆️</button>
+    </form>
+  </div>
+
   <script src="/static/app.js"></script>
 </body>
 </html>
