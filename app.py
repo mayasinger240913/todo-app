@@ -16,7 +16,10 @@ import os
 import sqlite3
 import secrets
 import time
+import json
 import smtplib
+import urllib.request
+import urllib.error
 from email.message import EmailMessage
 from datetime import datetime, date, timedelta
 from functools import wraps
@@ -47,11 +50,45 @@ SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = os.environ.get("SMTP_PASS", "")
 
+# Brevo — שליחת מייל דרך API ב-HTTPS. נחוץ בייצור (Render חוסם פורטי SMTP),
+# כי שליחה דרך HTTPS לא נחסמת. צריך BREVO_API_KEY + SENDER_EMAIL מאומת ב-Brevo.
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", SMTP_USER or "todo.family.app1@gmail.com")
+SENDER_NAME = os.environ.get("SENDER_NAME", "טודו")
 
-def send_email(to, subject, body):
-    """שולח מייל. מחזיר True אם הצליח. אם לא הוגדר SMTP — מחזיר False."""
-    if not SMTP_USER or not SMTP_PASS:
+
+def _send_email_brevo(to, subject, body):
+    """שולח מייל דרך Brevo API (HTTPS). מחזיר True אם הצליח."""
+    payload = json.dumps({
+        "sender": {"name": SENDER_NAME, "email": SENDER_EMAIL},
+        "to": [{"email": to}],
+        "subject": subject,
+        "textContent": body,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=payload,
+        headers={
+            "api-key": BREVO_API_KEY,
+            "Content-Type": "application/json",
+            "accept": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return 200 <= resp.status < 300
+    except urllib.error.HTTPError as e:
+        # מציג את הסיבה המדויקת מ-Brevo (למשל שולח לא מאומת / מפתח שגוי)
+        print(">> שגיאת שליחת מייל (Brevo):", e.code, e.read().decode("utf-8", "ignore"))
         return False
+    except Exception as e:
+        print(">> שגיאת שליחת מייל (Brevo):", e)
+        return False
+
+
+def _send_email_smtp(to, subject, body):
+    """שולח מייל דרך SMTP (לפיתוח מקומי; ב-Render הפורט חסום)."""
     msg = EmailMessage()
     msg["From"] = SMTP_USER
     msg["To"] = to
@@ -64,8 +101,18 @@ def send_email(to, subject, body):
             s.send_message(msg)
         return True
     except Exception as e:
-        print(">> שגיאת שליחת מייל:", e)
+        print(">> שגיאת שליחת מייל (SMTP):", e)
         return False
+
+
+def send_email(to, subject, body):
+    """שולח מייל. מעדיף Brevo (HTTPS, עובד ב-Render); נופל ל-SMTP בפיתוח מקומי.
+    מחזיר True אם הצליח. אם לא הוגדר שום ערוץ — מחזיר False."""
+    if BREVO_API_KEY:
+        return _send_email_brevo(to, subject, body)
+    if SMTP_USER and SMTP_PASS:
+        return _send_email_smtp(to, subject, body)
+    return False
 
 
 # ---------- צ'אט AI (עוזר חכם שעונה על שאלות לגבי האפליקציה) ----------
