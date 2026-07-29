@@ -54,7 +54,7 @@ SMTP_PASS = os.environ.get("SMTP_PASS", "")
 # כי שליחה דרך HTTPS לא נחסמת. צריך BREVO_API_KEY + SENDER_EMAIL מאומת ב-Brevo.
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", SMTP_USER or "todo.family.app1@gmail.com")
-SENDER_NAME = os.environ.get("SENDER_NAME", "טודו")
+SENDER_NAME = os.environ.get("SENDER_NAME", "2DO")
 
 
 def _send_email_brevo(to, subject, body):
@@ -131,10 +131,10 @@ CHAT_MODEL = "claude-haiku-4-5"
 # "מוח" העוזר: מתאר לו את האפליקציה כדי שיענה נכון.
 # טקסט זה יציב (לא משתנה בין בקשות) — לכן נשמור אותו במטמון (prompt caching)
 # וכך כל שיחה עולה פחות וחוזרת מהר יותר.
-CHAT_SYSTEM_PROMPT = """את/ה "עוזר טודו" — עוזר/ת ידידותי/ת וחכם/ה בתוך אפליקציית "טודו".
+CHAT_SYSTEM_PROMPT = """את/ה "עוזר 2DO" — עוזר/ת ידידותי/ת וחכם/ה בתוך אפליקציית "2DO".
 תפקידך לענות על שאלות של הורים (ולפעמים ילדים) לגבי השימוש באפליקציה.
 
-על האפליקציה "טודו":
+על האפליקציה "2DO":
 - אפליקציה משפחתית: ילדים מבצעים מטלות בית, מצלמים הוכחה בזמן אמת, וצוברים נקודות.
   את הנקודות אפשר להמיר לפרסים שההורה מגדיר. ההורה שולט בהכל ומאשר כל פעולה.
 - כניסת הורה: עם אימייל וסיסמה. בפעם הראשונה ממלאים הכל, ובפעמים הבאות האימייל נזכר
@@ -775,8 +775,8 @@ def forgot_send():
     db.commit()
     sent = send_email(
         email,
-        "קוד איפוס סיסמה - טודו",
-        f"שלום!\n\nקוד איפוס הסיסמה שלך לאפליקציית טודו הוא: {code}\n"
+        "קוד איפוס סיסמה - 2DO",
+        f"שלום!\n\nקוד איפוס הסיסמה שלך לאפליקציית 2DO הוא: {code}\n"
         f"הקוד תקף ל-30 דקות.\n\nאם לא ביקשת לאפס סיסמה, אפשר להתעלם מהמייל.",
     )
     if not sent:

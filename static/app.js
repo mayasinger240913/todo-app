@@ -266,7 +266,7 @@ function chatToggle(open) {
   if (show) {
     if (!$("#chat-body").childElementCount) {
       chatAddBubble("assistant",
-        "היי! 👋 אני העוזר של טודו. אפשר לשאול אותי על האפליקציה — " +
+        "היי! 👋 אני העוזר של 2DO. אפשר לשאול אותי על האפליקציה — " +
         "או פשוט ללחוץ על אחת מהשאלות הנפוצות:");
       chatAddChips();
     }
