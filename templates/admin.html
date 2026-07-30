@@ -12,7 +12,7 @@
       background: linear-gradient(135deg, #7c4dff 0%, #9d6bff 100%);
       margin: 0; padding: 24px; color: #2b2b3a; min-height: 100vh;
     }
-    .wrap { max-width: 760px; margin: 0 auto; }
+    .wrap { max-width: 860px; margin: 0 auto; }
     h1 { color: #fff; text-align: center; margin: 8px 0 4px; font-size: 28px; }
     .sub { color: #ece4ff; text-align: center; margin: 0 0 22px; font-size: 15px; }
     .grid {
@@ -26,7 +26,21 @@
     .num { font-size: 38px; font-weight: 800; color: #7c4dff; line-height: 1.1; }
     .label { font-size: 15px; color: #555; margin-top: 6px; }
     .emoji { font-size: 26px; display: block; margin-bottom: 6px; }
-    .section-title { color: #fff; font-size: 18px; margin: 26px 4px 10px; font-weight: 700; }
+    .section-title { color: #fff; font-size: 19px; margin: 28px 4px 12px; font-weight: 700; }
+    .panel {
+      background: #fff; border-radius: 18px; padding: 8px 4px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.12); overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    th, td { padding: 11px 12px; text-align: right; border-bottom: 1px solid #eee; }
+    th { color: #7c4dff; font-size: 14px; }
+    tr:last-child td { border-bottom: none; }
+    .kids { color: #444; font-size: 14px; }
+    .pill {
+      display: inline-block; background: #f0eaff; color: #6a3fd0;
+      border-radius: 999px; padding: 2px 9px; font-size: 13px; font-weight: 700;
+    }
+    .empty { color: #999; text-align: center; padding: 18px; }
     .foot { color: #ece4ff; text-align: center; margin-top: 24px; font-size: 13px; }
   </style>
 </head>
@@ -37,15 +51,9 @@
 
     <div class="section-title">👨‍👩‍👧‍👦 כמה משתמשים</div>
     <div class="grid">
-      <div class="card"><span class="emoji">🏠</span><div class="num">{{ families }}</div><div class="label">משפחות רשומות</div></div>
+      <div class="card"><span class="emoji">🏠</span><div class="num">{{ families_count }}</div><div class="label">משפחות רשומות</div></div>
       <div class="card"><span class="emoji">🧒</span><div class="num">{{ children }}</div><div class="label">ילדים</div></div>
-    </div>
-
-    <div class="section-title">✅ פעילות בסך הכל</div>
-    <div class="grid">
-      <div class="card"><span class="emoji">🧹</span><div class="num">{{ chores }}</div><div class="label">מטלות שהוגדרו</div></div>
       <div class="card"><span class="emoji">⭐</span><div class="num">{{ approved }}</div><div class="label">מטלות שאושרו</div></div>
-      <div class="card"><span class="emoji">🎁</span><div class="num">{{ rewards }}</div><div class="label">פרסים שהוגדרו</div></div>
       <div class="card"><span class="emoji">🛍️</span><div class="num">{{ redeemed }}</div><div class="label">פרסים שמומשו</div></div>
     </div>
 
@@ -53,6 +61,61 @@
     <div class="grid">
       <div class="card"><span class="emoji">📸</span><div class="num">{{ subs_7d }}</div><div class="label">מטלות שהוגשו</div></div>
       <div class="card"><span class="emoji">💜</span><div class="num">{{ active_7d }}</div><div class="label">משפחות פעילות</div></div>
+    </div>
+
+    <div class="section-title">🏠 המשפחות שנרשמו</div>
+    <div class="panel">
+      <table>
+        <tr>
+          <th>הורה</th><th>אימייל</th><th>ילדים</th>
+          <th>מטלות</th><th>פרסים</th><th>מטלות שבוצעו</th>
+        </tr>
+        {% for f in families %}
+        <tr>
+          <td><b>{{ f.name }}</b></td>
+          <td style="direction:ltr;text-align:left">{{ f.email }}</td>
+          <td class="kids">
+            {% if f.kids %}{{ f.kids | join(", ") }}{% else %}<span style="color:#bbb">אין ילדים</span>{% endif %}
+            <span class="pill">{{ f.kids_count }}</span>
+          </td>
+          <td>{{ f.chores }}</td>
+          <td>{{ f.rewards }}</td>
+          <td>{{ f.approved }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="empty">עדיין אין משפחות רשומות</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <div class="section-title">🧹 המטלות שקיימות</div>
+    <div class="panel">
+      <table>
+        <tr><th>מטלה</th><th>בכמה משפחות</th></tr>
+        {% for ch in chores_list %}
+        <tr>
+          <td>{{ ch.emoji }} {{ ch.title }}</td>
+          <td><span class="pill">{{ ch.c }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="2" class="empty">אין מטלות</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <div class="section-title">🎁 הפרסים שקיימים</div>
+    <div class="panel">
+      <table>
+        <tr><th>פרס</th><th>בכמה משפחות</th></tr>
+        {% for rw in rewards_list %}
+        <tr>
+          <td>{{ rw.emoji }} {{ rw.title }}</td>
+          <td><span class="pill">{{ rw.c }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="2" class="empty">אין פרסים</td></tr>
+        {% endfor %}
+      </table>
     </div>
 
     <p class="foot">🔒 עמוד פרטי — נגיש רק עם הקוד הסודי</p>

@@ -606,10 +606,42 @@ def admin_stats():
         val = row["c"]
         return val if val is not None else 0
 
+    def rows(sql, params=()):
+        return [dict(r) for r in db.execute(sql, params).fetchall()]
+
     week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
 
+    # פירוט לכל משפחה: הורה, ילדים, וכמה מטלות/פרסים/הגשות יש לה
+    families = []
+    for p in rows("SELECT id, name, email FROM users WHERE role='parent' ORDER BY id"):
+        fid = p["id"]
+        kids = rows(
+            "SELECT name, emoji FROM users WHERE role='child' AND family_id = ? ORDER BY name",
+            (fid,),
+        )
+        families.append({
+            "name": p["name"],
+            "email": p["email"] or "—",
+            "kids": [((k["emoji"] or "") + " " + (k["name"] or "")).strip() for k in kids],
+            "kids_count": len(kids),
+            "chores": one("SELECT COUNT(*) AS c FROM chores WHERE family_id = ?", (fid,)),
+            "rewards": one("SELECT COUNT(*) AS c FROM rewards WHERE family_id = ?", (fid,)),
+            "approved": one(
+                "SELECT COUNT(*) AS c FROM submissions WHERE family_id = ? AND status='approved'",
+                (fid,),
+            ),
+        })
+
+    # קטלוג המטלות והפרסים הקיימים (מקובצים לפי שם — בכמה משפחות כל אחד מופיע)
+    chores_list = rows(
+        "SELECT title, emoji, COUNT(*) AS c FROM chores GROUP BY title, emoji ORDER BY c DESC, title"
+    )
+    rewards_list = rows(
+        "SELECT title, emoji, COUNT(*) AS c FROM rewards GROUP BY title, emoji ORDER BY c DESC, title"
+    )
+
     stats = {
-        "families": one("SELECT COUNT(*) AS c FROM users WHERE role='parent'"),
+        "families_count": one("SELECT COUNT(*) AS c FROM users WHERE role='parent'"),
         "children": one("SELECT COUNT(*) AS c FROM users WHERE role='child'"),
         "chores": one("SELECT COUNT(*) AS c FROM chores"),
         "rewards": one("SELECT COUNT(*) AS c FROM rewards"),
@@ -620,6 +652,9 @@ def admin_stats():
             "SELECT COUNT(DISTINCT family_id) AS c FROM submissions WHERE created_at >= ?",
             (week_ago,),
         ),
+        "families": families,
+        "chores_list": chores_list,
+        "rewards_list": rewards_list,
         "now": datetime.now().strftime("%d/%m/%Y %H:%M"),
     }
     return render_template("admin.html", **stats)
