@@ -26,7 +26,7 @@ from functools import wraps
 
 from flask import (
     Flask, request, session, jsonify,
-    send_from_directory, render_template, g
+    send_from_directory, render_template, redirect, url_for, g
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from PIL import Image
@@ -620,6 +620,7 @@ def admin_stats():
             (fid,),
         )
         families.append({
+            "id": fid,
             "name": p["name"],
             "email": p["email"] or "—",
             "kids": [((k["emoji"] or "") + " " + (k["name"] or "")).strip() for k in kids],
@@ -656,8 +657,27 @@ def admin_stats():
         "chores_list": chores_list,
         "rewards_list": rewards_list,
         "now": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "key": request.args.get("key", ""),
     }
     return render_template("admin.html", **stats)
+
+
+@app.route("/admin/delete-family", methods=["POST"])
+def admin_delete_family():
+    """מחיקת משפחה שלמה (וכל הנתונים שלה) — מוגן בקוד הסודי."""
+    if not ADMIN_KEY or request.form.get("key", "") != ADMIN_KEY:
+        return "🔒 אין גישה", 403
+    try:
+        fid = int(request.form.get("family_id", ""))
+    except (TypeError, ValueError):
+        return "מזהה משפחה לא תקין", 400
+    db = get_db()
+    # מוחקים קודם את כל הנתונים התלויים, ואז את המשתמשים (הורה + ילדים)
+    for table in ["submissions", "reward_requests", "chore_requests", "chores", "rewards"]:
+        db.execute(f"DELETE FROM {table} WHERE family_id = ?", (fid,))
+    db.execute("DELETE FROM users WHERE family_id = ?", (fid,))
+    db.commit()
+    return redirect(url_for("admin_stats", key=ADMIN_KEY))
 
 
 @app.route("/uploads/<path:filename>")

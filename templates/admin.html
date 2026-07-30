@@ -41,6 +41,11 @@
       border-radius: 999px; padding: 2px 9px; font-size: 13px; font-weight: 700;
     }
     .empty { color: #999; text-align: center; padding: 18px; }
+    .del-btn {
+      background: #ffe9e9; border: none; border-radius: 10px; cursor: pointer;
+      font-size: 17px; padding: 5px 9px; line-height: 1;
+    }
+    .del-btn:hover { background: #ffd0d0; }
     .foot { color: #ece4ff; text-align: center; margin-top: 24px; font-size: 13px; }
   </style>
 </head>
@@ -68,7 +73,7 @@
       <table>
         <tr>
           <th>הורה</th><th>אימייל</th><th>ילדים</th>
-          <th>מטלות</th><th>פרסים</th><th>מטלות שבוצעו</th>
+          <th>מטלות</th><th>פרסים</th><th>מטלות שבוצעו</th><th></th>
         </tr>
         {% for f in families %}
         <tr>
@@ -81,9 +86,18 @@
           <td>{{ f.chores }}</td>
           <td>{{ f.rewards }}</td>
           <td>{{ f.approved }}</td>
+          <td>
+            <form method="POST" action="/admin/delete-family"
+                  onsubmit="return confirm('למחוק לצמיתות את המשפחה של {{ f.name }} וכל הנתונים שלה? אי אפשר לבטל!');"
+                  style="margin:0">
+              <input type="hidden" name="key" value="{{ key }}">
+              <input type="hidden" name="family_id" value="{{ f.id }}">
+              <button type="submit" class="del-btn" title="מחיקת המשפחה">🗑️</button>
+            </form>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="empty">עדיין אין משפחות רשומות</td></tr>
+        <tr><td colspan="7" class="empty">עדיין אין משפחות רשומות</td></tr>
         {% endfor %}
       </table>
     </div>
