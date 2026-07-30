@@ -1,6 +1,6 @@
 // Service Worker בסיסי — נדרש כדי שאפשר יהיה "להתקין" את האפליקציה.
 // שומר עותק של מעטפת האפליקציה (cache) כדי שתיפתח מהר.
-const CACHE = "todo-v1";
+const CACHE = "todo-v2";
 const ASSETS = [
   "/",
   "/static/style.css",
