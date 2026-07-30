@@ -599,21 +599,25 @@ def admin_stats():
     db = get_db()
 
     def one(sql, params=()):
+        # גישה לפי שם עמודה (c) — עובד גם ב-SQLite וגם ב-Postgres
         row = db.execute(sql, params).fetchone()
-        return (row[0] if row and row[0] is not None else 0)
+        if not row:
+            return 0
+        val = row["c"]
+        return val if val is not None else 0
 
     week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
 
     stats = {
-        "families": one("SELECT COUNT(*) FROM users WHERE role='parent'"),
-        "children": one("SELECT COUNT(*) FROM users WHERE role='child'"),
-        "chores": one("SELECT COUNT(*) FROM chores"),
-        "rewards": one("SELECT COUNT(*) FROM rewards"),
-        "approved": one("SELECT COUNT(*) FROM submissions WHERE status='approved'"),
-        "redeemed": one("SELECT COUNT(*) FROM reward_requests WHERE status='approved'"),
-        "subs_7d": one("SELECT COUNT(*) FROM submissions WHERE created_at >= ?", (week_ago,)),
+        "families": one("SELECT COUNT(*) AS c FROM users WHERE role='parent'"),
+        "children": one("SELECT COUNT(*) AS c FROM users WHERE role='child'"),
+        "chores": one("SELECT COUNT(*) AS c FROM chores"),
+        "rewards": one("SELECT COUNT(*) AS c FROM rewards"),
+        "approved": one("SELECT COUNT(*) AS c FROM submissions WHERE status='approved'"),
+        "redeemed": one("SELECT COUNT(*) AS c FROM reward_requests WHERE status='approved'"),
+        "subs_7d": one("SELECT COUNT(*) AS c FROM submissions WHERE created_at >= ?", (week_ago,)),
         "active_7d": one(
-            "SELECT COUNT(DISTINCT family_id) FROM submissions WHERE created_at >= ?",
+            "SELECT COUNT(DISTINCT family_id) AS c FROM submissions WHERE created_at >= ?",
             (week_ago,),
         ),
         "now": datetime.now().strftime("%d/%m/%Y %H:%M"),
