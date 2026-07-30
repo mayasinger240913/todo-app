@@ -43,6 +43,14 @@ app = Flask(__name__)
 # ובפיתוח יש ערך ברירת מחדל.
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-secret-change-in-production")
 
+
+@app.after_request
+def no_cache_api(resp):
+    """תגובות ה-API לא נשמרות במטמון — כדי שהנתונים תמיד יהיו עדכניים."""
+    if request.path.startswith("/api/"):
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
+
 # הגדרות שליחת מייל (לשחזור סיסמה). מגיעות ממשתני סביבה.
 # ברירת מחדל ל-Gmail; SMTP_USER ו-SMTP_PASS הם המייל וסיסמת-האפליקציה.
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")

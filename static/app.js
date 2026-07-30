@@ -80,7 +80,8 @@ function celebrate(sound = "success") {
 
 // קריאות לשרת (JSON)
 async function api(path, method = "GET", body = null) {
-  const opts = { method, headers: {} };
+  // cache: "no-store" — תמיד נתונים טריים מהשרת (למנוע רשימות ישנות מהמטמון)
+  const opts = { method, headers: {}, cache: "no-store" };
   if (body) {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(body);
