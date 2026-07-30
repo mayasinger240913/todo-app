@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>ניהול — סטטיסטיקות 2DO</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(135deg, #7c4dff 0%, #9d6bff 100%);
+      margin: 0; padding: 24px; color: #2b2b3a; min-height: 100vh;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    h1 { color: #fff; text-align: center; margin: 8px 0 4px; font-size: 28px; }
+    .sub { color: #ece4ff; text-align: center; margin: 0 0 22px; font-size: 15px; }
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: #fff; border-radius: 18px; padding: 20px 16px; text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    }
+    .num { font-size: 38px; font-weight: 800; color: #7c4dff; line-height: 1.1; }
+    .label { font-size: 15px; color: #555; margin-top: 6px; }
+    .emoji { font-size: 26px; display: block; margin-bottom: 6px; }
+    .section-title { color: #fff; font-size: 18px; margin: 26px 4px 10px; font-weight: 700; }
+    .foot { color: #ece4ff; text-align: center; margin-top: 24px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>📊 לוח ניהול 2DO</h1>
+    <p class="sub">סטטיסטיקות שימוש · עודכן ב-{{ now }}</p>
+
+    <div class="section-title">👨‍👩‍👧‍👦 כמה משתמשים</div>
+    <div class="grid">
+      <div class="card"><span class="emoji">🏠</span><div class="num">{{ families }}</div><div class="label">משפחות רשומות</div></div>
+      <div class="card"><span class="emoji">🧒</span><div class="num">{{ children }}</div><div class="label">ילדים</div></div>
+    </div>
+
+    <div class="section-title">✅ פעילות בסך הכל</div>
+    <div class="grid">
+      <div class="card"><span class="emoji">🧹</span><div class="num">{{ chores }}</div><div class="label">מטלות שהוגדרו</div></div>
+      <div class="card"><span class="emoji">⭐</span><div class="num">{{ approved }}</div><div class="label">מטלות שאושרו</div></div>
+      <div class="card"><span class="emoji">🎁</span><div class="num">{{ rewards }}</div><div class="label">פרסים שהוגדרו</div></div>
+      <div class="card"><span class="emoji">🛍️</span><div class="num">{{ redeemed }}</div><div class="label">פרסים שמומשו</div></div>
+    </div>
+
+    <div class="section-title">🔥 ב-7 הימים האחרונים</div>
+    <div class="grid">
+      <div class="card"><span class="emoji">📸</span><div class="num">{{ subs_7d }}</div><div class="label">מטלות שהוגשו</div></div>
+      <div class="card"><span class="emoji">💜</span><div class="num">{{ active_7d }}</div><div class="label">משפחות פעילות</div></div>
+    </div>
+
+    <p class="foot">🔒 עמוד פרטי — נגיש רק עם הקוד הסודי</p>
+  </div>
+</body>
+</html>

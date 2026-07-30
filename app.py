@@ -56,6 +56,10 @@ BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", SMTP_USER or "todo.family.app1@gmail.com")
 SENDER_NAME = os.environ.get("SENDER_NAME", "2DO")
 
+# קוד סודי לעמוד הניהול /admin (סטטיסטיקות שימוש). מוגדר במשתני הסביבה ב-Render.
+# בלי קוד — העמוד לא פעיל. אין ברירת מחדל בקוד כי הריפו ציבורי.
+ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
+
 
 def _send_email_brevo(to, subject, body):
     """שולח מייל דרך Brevo API (HTTPS). מחזיר True אם הצליח."""
@@ -571,6 +575,50 @@ def privacy():
 @app.route("/terms")
 def terms():
     return render_template("terms.html")
+
+
+@app.route("/admin")
+def admin_stats():
+    """עמוד סטטיסטיקות שימוש — נגיש רק עם הקוד הסודי: /admin?key=..."""
+    if not ADMIN_KEY:
+        return (
+            "<div dir='rtl' style='font-family:sans-serif;padding:30px;font-size:18px;line-height:1.7'>"
+            "עמוד הניהול עדיין לא הופעל 🔧<br>"
+            "כדי להפעיל אותו: הגדירי ב-Render משתנה סביבה בשם <b>ADMIN_KEY</b> "
+            "עם קוד סודי משלך (למשל <code>maya2026</code>), ואז היכנסי לכתובת "
+            "<code>/admin?key=הקוד-שלך</code>."
+            "</div>"
+        ), 200
+    if request.args.get("key", "") != ADMIN_KEY:
+        return (
+            "<div dir='rtl' style='font-family:sans-serif;padding:30px;font-size:20px'>"
+            "🔒 אין גישה. צריך להוסיף את הקוד הסודי לכתובת: <code>/admin?key=...</code>"
+            "</div>"
+        ), 403
+
+    db = get_db()
+
+    def one(sql, params=()):
+        row = db.execute(sql, params).fetchone()
+        return (row[0] if row and row[0] is not None else 0)
+
+    week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+
+    stats = {
+        "families": one("SELECT COUNT(*) FROM users WHERE role='parent'"),
+        "children": one("SELECT COUNT(*) FROM users WHERE role='child'"),
+        "chores": one("SELECT COUNT(*) FROM chores"),
+        "rewards": one("SELECT COUNT(*) FROM rewards"),
+        "approved": one("SELECT COUNT(*) FROM submissions WHERE status='approved'"),
+        "redeemed": one("SELECT COUNT(*) FROM reward_requests WHERE status='approved'"),
+        "subs_7d": one("SELECT COUNT(*) FROM submissions WHERE created_at >= ?", (week_ago,)),
+        "active_7d": one(
+            "SELECT COUNT(DISTINCT family_id) FROM submissions WHERE created_at >= ?",
+            (week_ago,),
+        ),
+        "now": datetime.now().strftime("%d/%m/%Y %H:%M"),
+    }
+    return render_template("admin.html", **stats)
 
 
 @app.route("/uploads/<path:filename>")
