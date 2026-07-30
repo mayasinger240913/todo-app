@@ -1019,6 +1019,12 @@ def add_chore():
         return jsonify({"error": "צריך שם מטלה ומספר נקודות חיובי"}), 400
     user = current_user()
     db = get_db()
+    dup = db.execute(
+        "SELECT 1 FROM chores WHERE family_id = ? AND lower(title) = lower(?)",
+        (user["family_id"], title),
+    ).fetchone()
+    if dup:
+        return jsonify({"error": "כבר יש מטלה בשם הזה 🙂"}), 400
     db.execute(
         "INSERT INTO chores (title, points, emoji, family_id) VALUES (?,?,?,?)",
         (title, points, emoji, user["family_id"]),

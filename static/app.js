@@ -442,10 +442,13 @@ async function renderLogin() {
   const list = $("#user-list");
   list.innerHTML = "";
 
-  const code = familyCodeFromUrl();
+  const urlCode = familyCodeFromUrl();
+  if (urlCode) localStorage.setItem("familyCode", urlCode);
+  // זוכרים את קוד המשפחה במכשיר — כדי שילד יוכל להיכנס שוב גם אחרי יציאה
+  const code = urlCode || localStorage.getItem("familyCode") || "";
 
   // כניסה דרך Google (אם הוגדר) — רק במסך הראשי, לא בקישור הילד
-  if (!code) mountGoogle($("#google-login"));
+  if (!urlCode) mountGoogle($("#google-login"));
 
   // כניסת הורה — אימייל + סיסמה
   const parentBtn = document.createElement("div");
@@ -458,7 +461,7 @@ async function renderLogin() {
   list.appendChild(parentBtn);
 
   // יצירת משפחה חדשה (הרשמה) — לא מוצג בקישור של הילד
-  if (!code) {
+  if (!urlCode) {
     const signupBtn = document.createElement("div");
     signupBtn.className = "user-pick";
     signupBtn.innerHTML = `
