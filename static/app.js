@@ -1228,6 +1228,10 @@ async function reviewReq(id, decision, root) {
 async function loadKids(root) {
   const box = $('[data-content="kids"]', root);
   const kids = await api("/api/children");
+  // המטלות שאושרו — לקיבוץ לפי ילד (מה כל ילד ביצע)
+  const done = await api("/api/submissions?status=approved");
+  const byKid = {};
+  done.forEach((s) => { (byKid[s.child_id] = byKid[s.child_id] || []).push(s); });
   const famLink = `${location.origin}/f/${ME.family_code}`;
   let html = `<div class="card">
     <h2>📨 הקישור של המשפחה שלך</h2>
@@ -1247,6 +1251,17 @@ async function loadKids(root) {
   html += "<h2>הילדים שלי</h2>";
   if (kids.length === 0) html += `<div class="empty">עדיין אין ילדים</div>`;
   kids.forEach((k) => {
+    const list = byKid[k.id] || [];
+    let histHtml = "";
+    if (list.length === 0) {
+      histHtml = `<div class="s" style="padding:4px 2px">עדיין לא ביצע/ה מטלות</div>`;
+    } else {
+      list.forEach((s) => {
+        histHtml += `<div class="hist-item">✅ <span>${s.chore_title}</span>` +
+          `<span class="s hist-date">${(s.created_at || "").slice(0, 10)}</span>` +
+          `<span class="pts">+${s.points} ⭐</span></div>`;
+      });
+    }
     html += `<div class="item review-card" data-kid="${k.id}" data-name="${k.name}" data-emoji="${k.emoji}">
       <div class="info" style="display:flex;align-items:center;gap:10px">
         <span class="emoji">${k.emoji}</span>
@@ -1260,6 +1275,8 @@ async function loadKids(root) {
         <button class="btn small" data-edit-kid>✏️ שם</button>
         <button class="btn small red" data-del-kid>מחיקה</button>
       </div>
+      <button class="btn small ghost hist-toggle" data-hist="${k.id}">📜 מה ביצע/ה (${list.length})</button>
+      <div class="kid-history hidden" data-histlist="${k.id}">${histHtml}</div>
     </div>`;
   });
   box.innerHTML = html;
@@ -1270,6 +1287,13 @@ async function loadKids(root) {
     try { await navigator.clipboard.writeText(inp.value); } catch (e) { document.execCommand("copy"); }
     toast("הקישור הועתק! שלחי אותו לילדים 📨");
   };
+
+  // פתיחה/סגירה של רשימת המטלות שכל ילד ביצע
+  $$("[data-hist]", box).forEach((btn) => {
+    btn.onclick = () => {
+      $(`[data-histlist="${btn.dataset.hist}"]`, box).classList.toggle("hidden");
+    };
+  });
 
   $("#add-kid", box).onclick = async () => {
     const name = $("#kid-name", box).value.trim();
